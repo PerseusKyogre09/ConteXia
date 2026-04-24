@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>ConteXia Voice Activation</title>
+    <style>
+        body {
+            background: #0F172A;
+            color: #E2E8F0;
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 400px;
+            padding: 2rem;
+            border: 1px solid #1E293B;
+            background: #1E293B/50;
+            border-radius: 8px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #38BDF8;
+        }
+
+        p {
+            font-size: 0.9rem;
+            color: #64748B;
+            margin-bottom: 2rem;
+        }
+
+        button {
+            background: #38BDF8;
+            color: #0F172A;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            font-weight: bold;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+        }
+
+        .success {
+            color: #FACC15;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Voice Activation</h1>
+        <p>To enable hands-free interaction, ConteXia needs a one-time microphone authorization. Click below to
+            activate.</p>
+        <button id="grant">Allow Microphone</button>
+        <div id="status" class="success">✓ Voice Enabled. You can close this tab.</div>
+    </div>
+
+    <script type="module" src="/src/voice-setup.js"></script>
+</body>
+
+</html>
