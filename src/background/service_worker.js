@@ -2,6 +2,26 @@ chrome.sidePanel
     .setPanelBehavior({ openPanelOnActionClick: true })
     .catch((error) => console.error(error));
 
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && tab.url?.startsWith('file://')) {
+        try {
+            const isAllowed = await chrome.extension.isAllowedFileSchemeAccess();
+            if (isAllowed) {
+                const manifest = chrome.runtime.getManifest();
+                const contentScript = manifest.content_scripts?.[0]?.js?.[0];
+                if (contentScript) {
+                    await chrome.scripting.executeScript({
+                        target: { tabId: tabId },
+                        files: [contentScript]
+                    });
+                }
+            }
+        } catch (e) {
+            // Silently skip if injection isn't possible
+        }
+    }
+});
+
 chrome.runtime.onInstalled.addListener(() => {
     chrome.contextMenus.create({
         id: 'ask-contexia',
@@ -18,7 +38,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
                 type: 'PUSH_SELECTION',
                 payload: info.selectionText
             }).catch(() => {
-                console.log('ConteXia: Side panel not yet ready for selection push.');
+                // Side panel might still be warming up
             });
         }, 800);
     }
@@ -50,12 +70,13 @@ async function handleGroqRequest({ question, context, apiKey, tone, history }) {
 
     const systemPrompt = `You are ConteXia, a chill, knowledgeable friend.
 Tone: ${tone || 'Casual'}.
-CRITICAL:
-1. DO NOT mention "this document," "the PDF," or "the page" ever again after the first message.
-2. If this is a follow-up (history exists), just reply normally like a friend in a DM.
-3. Be causal, warm, and extremely brief (1-2 sentences unless asked for more).
-4. No disclaimers. No "As an AI." No robotic greetings.
-5. If the user is just chatting (e.g., "how are you"), do NOT bring up the file context.`;
+CRITICAL IMMERSION RULES:
+1. NEVER mention technical terms like "screenshot," "capture," "image," "file," "PDF," or "this page."
+2. Talk as if you are looking over the user's shoulder at their screen.
+3. Refer to visual input as "what I'm seeing," "your notes," "your annotations," or directly by the content (e.g., "Those SQL notes look great").
+4. If this is a follow-up, just reply naturally like a friend in a DM.
+5. Be causal, warm, and extremely brief (1-2 sentences unless asked for more).
+6. No disclaimers, no robotic greetings, no "As an AI."`;
 
     let messages = [{ role: 'system', content: systemPrompt }];
 
@@ -79,7 +100,6 @@ CRITICAL:
                 ]
             });
         } catch (error) {
-            console.error('Vision capture failed:', error);
             messages.push({ role: 'user', content: userMessageContent });
         }
     } else {

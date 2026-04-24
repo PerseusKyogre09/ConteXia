@@ -1,110 +1,81 @@
 <script>
   import { onMount } from "svelte";
+  import { messages, isLoading, apiKey } from "./store";
   import Header from "./components/Header.svelte";
-  import ContextIndicator from "./components/ContextIndicator.svelte";
   import ChatList from "./components/ChatList.svelte";
-  import Settings from "./components/Settings.svelte";
   import InputArea from "./components/InputArea.svelte";
   import ApiKeyConfig from "./components/ApiKeyConfig.svelte";
   import LiveMode from "./components/LiveMode.svelte";
-  import {
-    context,
-    apiKey,
-    messages,
-    addMessage,
-    isLoading,
-    showSettings,
-    tone,
-  } from "./store";
 
   let initialized = false;
   let isLiveMode = false;
-  let liveModeRef;
 
   onMount(async () => {
-    if ($apiKey) {
+    const data = await chrome.storage.local.get(["apiKey"]);
+    if (data.apiKey) {
+      apiKey.set(data.apiKey);
       initialized = true;
     }
 
-    const unsubscribe = apiKey.subscribe((val) => {
-      if (val) initialized = true;
-    });
-
-    setInterval(async () => {
-      const [tab] = await chrome.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-      if (tab?.id) {
-        try {
-          const ctx = await chrome.tabs.sendMessage(tab.id, {
-            type: "GET_CONTEXT",
-          });
-          context.set(ctx);
-        } catch (e) {}
-      }
-    }, 500);
-
-    chrome.runtime.onMessage.addListener((message) => {
-      if (message.type === "PUSH_SELECTION") {
-        handleQuestion(`Describe this selection: ${message.payload}`);
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.type === "PUSH_SELECTION") {
+        handleQuestion(`What do you think about this? "${msg.payload}"`);
       }
     });
   });
 
-  async function handleQuestion(q) {
-    if (!q.trim() || $isLoading) return;
+  async function handleQuestion(text) {
+    if (!text.trim()) return;
 
-    addMessage("user", q);
+    messages.update((m) => [...m, { role: "user", content: text }]);
     isLoading.set(true);
 
-    const response = await chrome.runtime.sendMessage({
-      type: "ASK_GROQ",
-      payload: {
-        question: q,
-        context: $context,
-        apiKey: $apiKey,
-        tone: $tone,
-        history: $messages.map((m) => ({
-          role: m.role === "ai" ? "assistant" : m.role,
-          content: m.content,
-        })),
-      },
-    });
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: "ASK_GROQ",
+        payload: {
+          question: text,
+          apiKey: $apiKey,
+          history: $messages.slice(-6),
+        },
+      });
 
-    isLoading.set(false);
-
-    if (response.error) {
-      addMessage("ai", `Error: ${response.error}`);
-    } else {
-      addMessage("ai", response.answer);
-      if (isLiveMode && liveModeRef) {
-        liveModeRef.speak(response.answer);
-      }
+      if (response.error) throw new Error(response.error);
+      messages.update((m) => [...m, { role: "ai", content: response.answer }]);
+    } catch (e) {
+      messages.update((m) => [
+        ...m,
+        {
+          role: "ai",
+          content:
+            "I'm having a little trouble connecting. Could you check your key or connection?",
+        },
+      ]);
+    } finally {
+      isLoading.set(false);
     }
   }
 </script>
 
-<div class="flex flex-col h-screen overflow-hidden text-[#1E293B] relative">
-  {#if !initialized && !$apiKey}
+<main
+  class="flex flex-col h-screen bg-background text-foreground selection:bg-accent/30 overflow-hidden relative"
+>
+  <div
+    class="fixed inset-0 pointer-events-none opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] z-50"
+  ></div>
+
+  {#if !initialized}
     <ApiKeyConfig on:save={() => (initialized = true)} />
   {:else}
     <Header />
-    <ChatList />
+    <ChatList on:submit={(e) => handleQuestion(e.detail)} />
     <InputArea
       on:submit={(e) => handleQuestion(e.detail)}
       on:openLive={() => (isLiveMode = true)}
     />
-
-    <LiveMode
-      bind:isOpen={isLiveMode}
-      bind:this={liveModeRef}
-      on:submit={(e) => handleQuestion(e.detail)}
-      on:close={() => (isLiveMode = false)}
-    />
-
-    {#if $showSettings}
-      <Settings />
-    {/if}
   {/if}
-</div>
+
+  {#if isLiveMode}
+    <LiveMode on:close={() => (isLiveMode = false)} />
+  {/if}
+</main>

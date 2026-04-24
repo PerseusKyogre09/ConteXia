@@ -1,47 +1,26 @@
-### Prerequisites
+# ConteXia 🌿🖋️
 
-- [Node.js](https://nodejs.org/) (v18+)
-- [npm](https://www.npmjs.com/)
-- A [Groq API Key](https://console.groq.com/keys)
+**ConteXia** is a context-aware partner for deep reading and immersive dialogue. Built to feel like a high-end stationery suite, she lives in your browser to help you dive deeper into whatever you're reading.
 
-### Installation
+## ✨ Features
 
-1.  **Clone the repository**:
-    ```bash
-    git clone https://github.com/your-username/ConteXia.git
-    cd ConteXia
-    ```
+- **Ink Annotation**: Illustrate your thoughts directly on the page with a silky-smooth Bézier pen.
+- **Ambient Intelligence**: ConteXia sees what you see, referring naturally to "your notes" or "that section" rather than "captures" or "screenshots."
+- **Live Presence Mode**: Real-time voice interaction for hands-free deep-dives.
+- **Mint Fresh Aesthetic**: A cozy, high-fidelity UI featuring fractal-noise textures and smooth GSAP choreography.
 
-2.  **Install dependencies**:
-    ```bash
-    npm install
-    ```
+## 🛠️ Setup
 
-3.  **Build the extension**:
-    ```bash
-    npm run build
-    ```
+1. **Install Dependencies**: `npm install`
+2. **Launch Build**: `npm run dev` or `npm run build`
+3. **Load in Chrome**:
+   - Go to `chrome://extensions/`
+   - Enable **Developer Mode**.
+   - **Load Unpacked** and select the `dist` folder.
 
-4.  **Load into Chrome**:
-    - Open `chrome://extensions/`
-    - Enable **Developer mode** (top right).
-    - Click **Load unpacked** and select the `dist` folder in this project directory.
+## 🧠 Philosophy
 
-## 🛠️ Technology Stack
+Handcrafted for readers, by readers. No jargon, no robotic filler—just a focused, beautiful companion for your digital library.
 
-- **Framework**: [Svelte](https://svelte.dev/)
-- **Build Tool**: [Vite](https://vitejs.dev/) with [CRXJS](https://crxjs.dev/)
-- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
-- **Intelligence**: [Groq Cloud](https://groq.com/) (Llama 3.3 & Llama 4 Scout)
-- **Voice**: Web Speech API (Recognition & Synthesis)
-
-## 🎨 Design Philosophy
-
-ConteXia adheres to the **Midnight Ink** design system:
-- **Palette**: `#0F172A` (Midnight), `#38BDF8` (Icy Blue), `#FACC15` (Gold).
-- **Texture**: Fractal-noise overlays for a "physical paper" feel.
-- **Typography**: High-density "Outfit" sans-serif for professional readability.
-
-## 📄 License
-
-MIT License. Designed with care for the modern reader.
+---
+Designed with care. 🥂🍃🛡️✨🥂

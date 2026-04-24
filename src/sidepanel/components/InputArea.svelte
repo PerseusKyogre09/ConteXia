@@ -1,10 +1,53 @@
 <script>
     import { createEventDispatcher, onMount } from "svelte";
-    import { Send, Mic, Headphones } from "lucide-svelte";
-    import { isListening, isLoading } from "../store";
+    import { Send, Mic, Headphones, PenLine } from "lucide-svelte";
+    import { isListening, isLoading, addMessage } from "../store";
 
     const dispatch = createEventDispatcher();
     let text = "";
+    let isPenActive = false;
+
+    onMount(() => {
+        chrome.runtime.onMessage.addListener((msg) => {
+            if (msg.type === "PEN_CLOSED") isPenActive = false;
+        });
+    });
+
+    async function togglePen() {
+        const [tab] = await chrome.tabs.query({
+            active: true,
+            currentWindow: true,
+        });
+        if (!tab?.id) return;
+
+        // Local File Permission Guard
+        if (tab.url?.startsWith("file://")) {
+            const isAllowed =
+                await chrome.extension.isAllowedFileSchemeAccess();
+            if (!isAllowed) {
+                alert(
+                    'To annotate local files (like PDFs), please enable "Allow access to file URLs" in ConteXia settings (Details page).',
+                );
+                return;
+            }
+        }
+
+        try {
+            await chrome.tabs.sendMessage(tab.id, { type: "TOGGLE_PEN" });
+            isPenActive = !isPenActive;
+        } catch (e) {
+            const manifest = chrome.runtime.getManifest();
+            const contentScript = manifest.content_scripts?.[0]?.js?.[0];
+            if (contentScript) {
+                await chrome.scripting.executeScript({
+                    target: { tabId: tab.id },
+                    files: [contentScript],
+                });
+                await chrome.tabs.sendMessage(tab.id, { type: "TOGGLE_PEN" });
+                isPenActive = true;
+            }
+        }
+    }
 
     function submit() {
         if (text.trim()) {
@@ -51,7 +94,13 @@
     });
 
     function toggleVoice() {
-        if (!recognition) return;
+        if (!recognition) {
+            addMessage(
+                "ai",
+                "I'm sorry, but your browser doesn't seem to support speech recognition. We can still chat via text though!",
+            );
+            return;
+        }
 
         if ($isListening) {
             recognition.stop();
@@ -63,6 +112,11 @@
             } catch (e) {
                 console.error("Failed to start speech:", e);
                 isListening.set(false);
+                // AI Feedback for permission
+                addMessage(
+                    "ai",
+                    "I'd love to listen, but I don't have permission to use your microphone yet. Please enable it in your browser settings so we can talk!",
+                );
             }
         }
     }
@@ -100,6 +154,16 @@
             </div>
 
             <div class="flex items-center gap-2 pb-1">
+                <button
+                    on:click={togglePen}
+                    class="p-2 rounded-full {isPenActive
+                        ? 'text-highlight bg-highlight/10'
+                        : 'text-accent hover:text-highlight hover:bg-highlight/5'} transition-all"
+                    title="Annotation Pen"
+                >
+                    <PenLine size={18} />
+                </button>
+
                 <button
                     on:click={() => dispatch("openLive")}
                     class="p-2 rounded-full text-accent hover:text-highlight transition-all hover:bg-highlight/5"
