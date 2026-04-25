@@ -1,27 +1,25 @@
 <script>
   import { onMount } from "svelte";
-  import { messages, isLoading, apiKey } from "./store";
+  import { messages, isLoading, apiKey, showSettings } from "./store";
   import Header from "./components/Header.svelte";
   import ChatList from "./components/ChatList.svelte";
   import InputArea from "./components/InputArea.svelte";
   import ApiKeyConfig from "./components/ApiKeyConfig.svelte";
   import LiveMode from "./components/LiveMode.svelte";
+  import Settings from "./components/Settings.svelte";
 
   let initialized = false;
   let isLiveMode = false;
 
   onMount(async () => {
-    const data = await chrome.storage.local.get(["apiKey"]);
-    if (data.apiKey) {
-      apiKey.set(data.apiKey);
+    chrome.storage.local.get(["use_custom_key", "custom_api_key"], (data) => {
       initialized = true;
-    }
-
-    chrome.runtime.onMessage.addListener((msg) => {
-      if (msg.type === "PUSH_SELECTION") {
-        handleQuestion(`What do you think about this? "${msg.payload}"`);
-      }
     });
+  });
+  chrome.runtime.onMessage.addListener((msg) => {
+    if (msg.type === "PUSH_SELECTION") {
+      handleQuestion(`What do you think about this? "${msg.payload}"`);
+    }
   });
 
   async function handleQuestion(text) {
@@ -41,7 +39,10 @@
       });
 
       if (response.error) throw new Error(response.error);
-      messages.update((m) => [...m, { role: "ai", content: response.answer }]);
+      messages.update((m) => [
+        ...m,
+        { role: "assistant", content: response.answer },
+      ]);
     } catch (e) {
       messages.update((m) => [
         ...m,
@@ -77,5 +78,9 @@
 
   {#if isLiveMode}
     <LiveMode on:close={() => (isLiveMode = false)} />
+  {/if}
+
+  {#if $showSettings}
+    <Settings />
   {/if}
 </main>

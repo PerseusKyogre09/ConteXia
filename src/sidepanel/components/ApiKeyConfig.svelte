@@ -44,11 +44,13 @@
         </svg>
     </div>
 
-    <div class="relative">
+    <div
+        class="relative z-10 w-full max-w-sm px-6 py-8 flex flex-col items-center"
+    >
         <div
-            class="w-16 h-16 bg-accent/5 border border-accent/20 rounded-sm flex items-center justify-center text-accent shadow-glow-blue animate-pulse"
+            class="w-16 h-16 rounded-2xl bg-surface border border-accent/20 flex items-center justify-center shadow-lg shadow-accent/10 mb-8 transform hover:scale-105 transition-transform"
         >
-            <Key size={28} />
+            <Key class="text-accent w-8 h-8" />
         </div>
         <div
             class="absolute -bottom-1 -right-1 w-6 h-6 bg-background border border-accent/30 rounded-sm flex items-center justify-center text-accent/80 scale-75"
@@ -59,15 +61,10 @@
 
     <div class="space-y-3 z-10">
         <h1
-            class="text-2xl font-black uppercase tracking-[0.2em] text-[#E2E8F0]"
+            class="text-2xl font-black uppercase tracking-[0.2em] text-foreground"
         >
             ConteXia
         </h1>
-        <p
-            class="text-[10px] font-medium text-muted tracking-widest uppercase opacity-60"
-        >
-            Neural Initialization Required
-        </p>
     </div>
 
     <div class="w-full space-y-6 z-10 max-w-[280px]">
@@ -77,7 +74,7 @@
                     type="password"
                     bind:value
                     placeholder="Enter your Groq Key..."
-                    class="w-full bg-surface/40 border border-border/40 rounded-sm px-4 py-4 text-xs text-[#E2E8F0] placeholder:text-muted/40 focus:outline-none focus:border-accent/40 inset-shadow ink-border transition-all font-mono"
+                    class="w-full bg-surface/40 border border-border/40 rounded-sm px-4 py-4 text-xs text-foreground placeholder:text-muted/60 focus:outline-none focus:border-accent/40 inset-shadow ink-border transition-all font-mono"
                 />
                 {#if value.startsWith("gsk_")}
                     <div
@@ -113,7 +110,7 @@
 
             <button
                 on:click={useDemo}
-                class="w-full p-4 border border-border/40 bg-surface/10 rounded-sm text-[10px] font-bold uppercase tracking-widest text-muted hover:text-[#E2E8F0] hover:border-accent/40 transition-all hover:bg-accent/5"
+                class="w-full p-4 border border-border/40 bg-surface/10 rounded-sm text-[10px] font-bold uppercase tracking-widest text-muted/80 hover:text-foreground hover:border-accent/40 transition-all hover:bg-accent/5"
             >
                 Enter Demo Mode
             </button>
@@ -127,7 +124,4 @@
 </div>
 
 <style>
-    .shadow-glow-blue {
-        box-shadow: 0 0 30px rgba(56, 189, 248, 0.15);
-    }
 </style>

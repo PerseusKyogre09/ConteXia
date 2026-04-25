@@ -47,7 +47,7 @@
                         class="flex items-center gap-2 px-1 text-[9px] font-black uppercase tracking-[0.2em] text-muted/60"
                     >
                         {msg.role === "user" ? "You" : "ConteXia"}
-                        {#if msg.role === "ai"}
+                        {#if msg.role === "assistant"}
                             <div
                                 class="w-1.5 h-1.5 rounded-full bg-accent/40"
                             ></div>
@@ -65,7 +65,7 @@
                         >
                             {msg.content}
                         </div>
-                        {#if msg.role === "ai"}
+                        {#if msg.role === "assistant"}
                             <div
                                 class="mt-4 flex justify-between items-center pt-3 border-t border-border/20"
                             >

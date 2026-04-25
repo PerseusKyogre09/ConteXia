@@ -1,6 +1,6 @@
 chrome.sidePanel
     .setPanelBehavior({ openPanelOnActionClick: true })
-    .catch((error) => console.error(error));
+    .catch(console.error);
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.url?.startsWith('file://')) {
@@ -17,7 +17,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                 }
             }
         } catch (e) {
-            // Silently skip if injection isn't possible
+            // Injection not possible
         }
     }
 });
@@ -37,9 +37,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
             chrome.runtime.sendMessage({
                 type: 'PUSH_SELECTION',
                 payload: info.selectionText
-            }).catch(() => {
-                // Side panel might still be warming up
-            });
+            }).catch(() => { });
         }, 800);
     }
 });
@@ -80,8 +78,11 @@ CRITICAL IMMERSION RULES:
 
     let messages = [{ role: 'system', content: systemPrompt }];
 
-    if (history && history.length > 0) {
-        messages = [...messages, ...history];
+    if (history?.length) {
+        messages.push(...history.map(m => ({
+            role: m.role === "ai" ? "assistant" : m.role,
+            content: m.content,
+        })));
     }
 
     const isFirstMessage = !history || history.length === 0;
@@ -123,7 +124,7 @@ CRITICAL IMMERSION RULES:
 
         const data = await response.json();
         if (data.error) throw new Error(data.error.message);
-        return { answer: data.choices[0].message.content };
+        return { answer: data.choices[0].message.content.trim() };
     } catch (error) {
         return { error: error.message };
     }
@@ -131,9 +132,8 @@ CRITICAL IMMERSION RULES:
 
 function buildUserPrompt(question, context) {
     if (!context) {
-        return `<|start_header_id|>user<|end_header_id|>
-User's question: "${question}"
-Answer based on general knowledge since no page context is available.<|eot_id|><|start_header_id|>assistant<|end_header_id|>`;
+        return `User's question: "${question}"
+Answer based on general knowledge since no page context is available.`;
     }
 
     const contextBlock = context.selectedText
@@ -142,8 +142,6 @@ Answer based on general knowledge since no page context is available.<|eot_id|><
             ? `It seems you're looking at: "${context.hoveredSection}"`
             : `I can see you're on: "${context.pageTitle || 'this page'}"`;
 
-    return `<|start_header_id|>user<|end_header_id|>
-Context: ${contextBlock}
-User: ${question}
-<|eot_id|><|start_header_id|>assistant<|end_header_id|>`;
+    return `Context: ${contextBlock}
+User: ${question}`;
 }
