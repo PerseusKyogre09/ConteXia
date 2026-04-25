@@ -1,3 +1,8 @@
+import { RateLimiter } from '../utils/rate_limiter';
+
+const groqLimiter = new RateLimiter('Groq', 10, 60000);
+const cartesiaLimiter = new RateLimiter('Cartesia', 20, 60000);
+
 chrome.sidePanel
     .setPanelBehavior({ openPanelOnActionClick: true })
     .catch(console.error);
@@ -81,7 +86,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function handleCartesiaTTS({ transcript, voiceId, apiKey }) {
+    const limitCheck = await cartesiaLimiter.checkLimit();
+    if (!limitCheck.allowed) return { error: limitCheck.message };
+
     try {
+        await cartesiaLimiter.recordRequest();
         const response = await fetch('https://api.cartesia.ai/tts/bytes', {
             method: 'POST',
             headers: {
@@ -174,11 +183,13 @@ CRITICAL IMMERSION RULES:
         } catch (error) {
             messages.push({ role: 'user', content: userMessageContent });
         }
-    } else {
-        messages.push({ role: 'user', content: userMessageContent });
     }
 
+    const limitCheck = await groqLimiter.checkLimit();
+    if (!limitCheck.allowed) return { error: limitCheck.message };
+
     try {
+        await groqLimiter.recordRequest();
         const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -200,6 +211,7 @@ CRITICAL IMMERSION RULES:
         return { error: error.message };
     }
 }
+
 
 function buildUserPrompt(question, context) {
     if (!context) {
