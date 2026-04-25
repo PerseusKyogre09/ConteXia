@@ -16,9 +16,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                     });
                 }
             }
-        } catch (e) {
-            // Injection not possible
-        }
+        } catch (e) { }
     }
 });
 
@@ -47,6 +45,34 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         handleGroqRequest(message.payload).then(sendResponse);
         return true;
     }
+    if (message.type === 'CHIP_CLICK' && message.payload.action === 'SUMMARIZE') {
+        const { text, msgId } = message.payload;
+        const tabId = sender.tab.id;
+
+        chrome.storage.local.set({
+            pending_command: {
+                action: 'SUMMARIZE',
+                text: text,
+                msgId: msgId,
+                timestamp: Date.now()
+            }
+        });
+
+        chrome.sidePanel.open({ tabId });
+
+        const dispatch = () => {
+            chrome.runtime.sendMessage({
+                type: 'APP_COMMAND',
+                payload: { action: 'SUMMARIZE', text: text, msgId: msgId }
+            }).catch(() => { });
+        };
+
+        dispatch();
+        setTimeout(dispatch, 800);
+        setTimeout(dispatch, 2000);
+
+        return true;
+    }
 });
 
 async function handleGroqRequest({ question, context, apiKey, tone, history }) {
@@ -73,8 +99,9 @@ CRITICAL IMMERSION RULES:
 2. Talk as if you are looking over the user's shoulder at their screen.
 3. Refer to visual input as "what I'm seeing," "your notes," "your annotations," or directly by the content (e.g., "Those SQL notes look great").
 4. If this is a follow-up, just reply naturally like a friend in a DM.
-5. Be causal, warm, and extremely brief (1-2 sentences unless asked for more).
-6. No disclaimers, no robotic greetings, no "As an AI."`;
+5. Be causal, warm, and conversational.
+6. Adapt your length to the request: if asked to "sumarize or explain," provide a deep, thoughtful breakdown. Otherwise, stay concise.
+7. No disclaimers, no robotic greetings, no "As an AI."`;
 
     let messages = [{ role: 'system', content: systemPrompt }];
 

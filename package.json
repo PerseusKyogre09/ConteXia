@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "gsap": "^3.15.0",
-    "lucide-svelte": "^0.294.0"
+    "lucide-svelte": "^0.294.0",
+    "marked": "^18.0.2"
   }
 }

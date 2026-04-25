@@ -20,8 +20,7 @@ export const apiKey = derived(
 export const tone = writable('Casual');
 export const showSettings = writable(false);
 
-// Initialize from storage
-// Load initial state
+
 chrome.storage.local.get(['groq_api_key', 'contexia_tone', 'use_custom_key', 'custom_api_key']).then(data => {
     if (data.use_custom_key !== undefined) useCustomKey.set(data.use_custom_key);
     if (data.custom_api_key) customApiKey.set(data.custom_api_key);
@@ -36,7 +35,7 @@ chrome.storage.session.get(['contexia_messages']).then(data => {
     if (data.contexia_messages) messages.set(data.contexia_messages);
 });
 
-// Sync to storage
+
 let initialized = false;
 setTimeout(() => initialized = true, 500);
 

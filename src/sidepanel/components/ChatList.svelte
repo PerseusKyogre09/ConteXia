@@ -1,6 +1,7 @@
 <script>
     import { messages, isLoading, isSpeaking } from "../store";
     import { afterUpdate, onMount, createEventDispatcher } from "svelte";
+    import { marked } from "marked";
     import { Volume2 } from "lucide-svelte";
     import { speak, stop } from "../../lib/tts";
     import { gsap } from "gsap";
@@ -61,9 +62,16 @@
                             : 'bg-surface/50 ink-border border-l-4 border-muted text-foreground'}"
                     >
                         <div
-                            class="font-medium whitespace-pre-wrap selection:bg-accent/30"
+                            class="font-medium selection:bg-accent/30 markdown-content {msg.role ===
+                            'user'
+                                ? 'whitespace-pre-wrap'
+                                : ''}"
                         >
-                            {msg.content}
+                            {#if msg.role === "assistant"}
+                                {@html marked.parse(msg.content)}
+                            {:else}
+                                {msg.content}
+                            {/if}
                         </div>
                         {#if msg.role === "assistant"}
                             <div
@@ -121,3 +129,62 @@
 
     <div class="h-16"></div>
 </div>
+
+<style>
+    .markdown-content :global(h1) {
+        font-size: 1.125rem;
+        font-weight: 700;
+        margin: 0.25rem 0;
+    }
+    .markdown-content :global(h2) {
+        font-size: 1rem;
+        font-weight: 700;
+        margin: 0.2rem 0;
+    }
+    .markdown-content :global(h3) {
+        font-size: 0.875rem;
+        font-weight: 700;
+        margin: 0.15rem 0;
+    }
+    .markdown-content :global(p) {
+        margin: 0.15rem 0;
+    }
+    .markdown-content :global(ul) {
+        list-style-type: disc;
+        list-style-position: inside;
+        margin: 0.15rem 0;
+    }
+    .markdown-content :global(ol) {
+        list-style-type: decimal;
+        list-style-position: inside;
+        margin: 0.15rem 0;
+    }
+    .markdown-content :global(li) {
+        margin: 0.1rem 0;
+    }
+    .markdown-content :global(strong) {
+        font-weight: 700;
+        color: #6366f1;
+    }
+    .markdown-content :global(code) {
+        background-color: rgba(255, 255, 255, 0.1);
+        padding: 0 0.25rem;
+        border-radius: 0.25rem;
+        font-size: 0.75rem;
+        font-family: monospace;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .markdown-content :global(pre) {
+        background-color: rgba(0, 0, 0, 0.2);
+        padding: 0.75rem;
+        border-radius: 0.125rem;
+        margin: 0.5rem 0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        overflow-x: auto;
+    }
+    .markdown-content :global(pre code) {
+        background-color: transparent;
+        border: none;
+        padding: 0;
+    }
+</style>

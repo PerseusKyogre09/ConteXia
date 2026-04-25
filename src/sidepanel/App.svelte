@@ -11,15 +11,45 @@
   let initialized = false;
   let isLiveMode = false;
 
+  let processedMsgIds = new Set();
+
   onMount(async () => {
-    chrome.storage.local.get(["use_custom_key", "custom_api_key"], (data) => {
-      initialized = true;
+    const detailedPrompt = (text) =>
+      text === "Visual Analysis of Section"
+        ? "Can you give me a deep dive into this section?"
+        : `Deep dive on this: "${text}"`;
+
+    const triggerIfNew = (msgId, text) => {
+      if (processedMsgIds.has(msgId)) return;
+      processedMsgIds.add(msgId);
+      handleQuestion(detailedPrompt(text));
+    };
+
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (msg.type === "PUSH_SELECTION") {
+        handleQuestion(`What do you think about this? "${msg.payload}"`);
+      } else if (msg.type === "APP_COMMAND") {
+        if (msg.payload.action === "SUMMARIZE") {
+          triggerIfNew(msg.payload.msgId, msg.payload.text);
+        }
+      }
     });
-  });
-  chrome.runtime.onMessage.addListener((msg) => {
-    if (msg.type === "PUSH_SELECTION") {
-      handleQuestion(`What do you think about this? "${msg.payload}"`);
-    }
+
+    chrome.storage.local.get(
+      ["use_custom_key", "custom_api_key", "pending_command"],
+      (data) => {
+        initialized = true;
+        if (data.pending_command) {
+          const { action, text, msgId, timestamp } = data.pending_command;
+          if (Date.now() - timestamp < 15000) {
+            if (action === "SUMMARIZE") {
+              triggerIfNew(msgId, text);
+            }
+          }
+          chrome.storage.local.remove("pending_command");
+        }
+      },
+    );
   });
 
   async function handleQuestion(text) {
