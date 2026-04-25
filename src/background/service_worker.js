@@ -107,8 +107,12 @@ async function handleCartesiaTTS({ transcript, voiceId, apiKey }) {
         }
 
         const buffer = await response.arrayBuffer();
-        const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-        return { data: base64 };
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return { data: btoa(binary) };
     } catch (error) {
         console.error("Background TTS error:", error);
         return { error: error.message };
