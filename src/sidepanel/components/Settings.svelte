@@ -15,6 +15,8 @@
         clearHistory,
         useCustomKey,
         customApiKey,
+        cartesiaKey,
+        cartesiaVoiceId,
     } from "../store";
     import { fly, fade } from "svelte/transition";
 
@@ -29,8 +31,18 @@
         "Minimalist",
     ];
 
+    const voices = [
+        { name: "Tessa (Emotive)", id: "6ccbfb76-1fc6-48f7-b71d-91ac6298247b" },
+        { name: "Katie (Stable)", id: "f786b574-daa5-4673-aa0c-cbe3e8534c02" },
+        { name: "Kiefer (Deep)", id: "228fca29-3a0a-435c-8728-5cb483251068" },
+    ];
+
+    let tempCartesiaKey = "";
+    cartesiaKey.subscribe((v) => (tempCartesiaKey = v));
+
     function saveSettings() {
         customApiKey.set(tempApiKey);
+        cartesiaKey.set(tempCartesiaKey);
         showSettings.set(false);
     }
 
@@ -143,21 +155,49 @@
         </section>
 
         <section class="space-y-4">
-            <div class="flex items-center gap-2 text-highlight/80">
+            <div class="flex items-center gap-2 text-accent">
                 <Mic size={14} />
                 <h2 class="text-[10px] font-black uppercase tracking-widest">
-                    Listen to Me
+                    Audio Persona (Cartesia)
                 </h2>
             </div>
+
+            <div class="space-y-3">
+                <div class="relative">
+                    <input
+                        type="password"
+                        bind:value={tempCartesiaKey}
+                        placeholder="Cartesia API Key..."
+                        class="w-full bg-surface/40 border border-border/20 rounded-sm p-3 text-[10px] text-foreground focus:border-accent/60 transition-all ink-border"
+                    />
+                </div>
+
+                <div class="grid grid-cols-1 gap-2">
+                    {#each voices as v}
+                        <button
+                            on:click={() => cartesiaVoiceId.set(v.id)}
+                            class="p-3 text-[10px] font-bold border rounded-sm transition-all flex items-center justify-between {$cartesiaVoiceId ===
+                            v.id
+                                ? 'bg-accent/10 border-accent text-accent'
+                                : 'bg-surface/10 border-border/20 text-muted opacity-60'}"
+                        >
+                            {v.name}
+                            {#if $cartesiaVoiceId === v.id}
+                                <div
+                                    class="w-1 h-1 bg-accent rounded-full"
+                                ></div>
+                            {/if}
+                        </button>
+                    {/each}
+                </div>
+            </div>
+
             <button
                 on:click={handleVoiceActivation}
                 class="w-full p-4 border border-border/40 bg-surface/10 rounded-sm text-[10px] font-bold uppercase tracking-widest text-foreground hover:bg-accent/5 hover:border-accent/40 transition-all text-center"
             >
                 Activate Microphone
             </button>
-            <p class="text-[9px] text-muted leading-relaxed px-1">
-                Required once to enable the speech-to-text engine.
-            </p>
         </section>
 
         <section class="pt-6 border-t border-border/20 space-y-4">

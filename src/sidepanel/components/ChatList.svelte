@@ -2,17 +2,33 @@
     import { messages, isLoading, isSpeaking } from "../store";
     import { afterUpdate, onMount, createEventDispatcher } from "svelte";
     import { marked } from "marked";
-    import { Volume2 } from "lucide-svelte";
-    import { speak, stop } from "../../lib/tts";
-    import { gsap } from "gsap";
+    import { Volume2, User, Sparkles, Copy, Check } from "lucide-svelte";
+    import { fade, fly } from "svelte/transition";
+    import { speakWithCartesia } from "../utils/audio";
     import Landing from "./Landing.svelte";
 
     let container;
+    let copiedId = null;
+    let speakingId = null;
     const dispatch = createEventDispatcher();
 
-    function handleSpeak(text) {
-        isSpeaking.set(true);
-        speak(text, { onEnd: () => isSpeaking.set(false) });
+    async function handleVocalize(id, text) {
+        if (speakingId === id) {
+            speakingId = null;
+            return;
+        }
+        speakingId = id;
+        try {
+            await speakWithCartesia(text);
+        } finally {
+            speakingId = null;
+        }
+    }
+
+    function copyToClipboard(id, text) {
+        navigator.clipboard.writeText(text);
+        copiedId = id;
+        setTimeout(() => (copiedId = null), 2000);
     }
 
     function reveal(node) {
@@ -37,9 +53,8 @@
         <Landing on:submit />
     {:else}
         <div class="space-y-10">
-            {#each $messages as msg}
+            {#each $messages as msg, index}
                 <div
-                    use:reveal
                     class="flex flex-col space-y-3 {msg.role === 'user'
                         ? 'items-end'
                         : 'items-start'}"
@@ -85,19 +100,34 @@
                                         class="w-1.5 h-0.5 bg-highlight opacity-20"
                                     ></div>
                                 </div>
-                                <button
-                                    on:click={() => handleSpeak(msg.content)}
-                                    class="p-1.5 px-3 rounded-sm bg-surface/80 border border-border/40 text-muted hover:text-highlight transition-all flex items-center gap-2 group"
-                                >
-                                    <Volume2
-                                        size={12}
-                                        class="group-hover:scale-110 transition-transform"
-                                    />
-                                    <span
-                                        class="text-[9px] uppercase font-black tracking-widest"
-                                        >Vocalize</span
+                                <div class="flex gap-1">
+                                    <button
+                                        on:click={() =>
+                                            handleVocalize(index, msg.content)}
+                                        class="p-1.5 rounded-sm hover:bg-accent/10 transition-colors {speakingId ===
+                                        index
+                                            ? 'text-accent animate-pulse'
+                                            : 'text-muted/40 hover:text-accent'}"
+                                        title="Narrate"
                                     >
-                                </button>
+                                        <Volume2 size={12} />
+                                    </button>
+                                    <button
+                                        on:click={() =>
+                                            copyToClipboard(index, msg.content)}
+                                        class="p-1.5 rounded-sm hover:bg-accent/10 transition-colors {copiedId ===
+                                        index
+                                            ? 'text-accent'
+                                            : 'text-muted/40 hover:text-accent'}"
+                                        title="Copy"
+                                    >
+                                        {#if copiedId === index}
+                                            <Check size={11} />
+                                        {:else}
+                                            <Copy size={11} />
+                                        {/if}
+                                    </button>
+                                </div>
                             </div>
                         {/if}
                     </div>

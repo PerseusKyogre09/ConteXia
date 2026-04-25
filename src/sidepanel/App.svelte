@@ -7,13 +7,19 @@
   import ApiKeyConfig from "./components/ApiKeyConfig.svelte";
   import LiveMode from "./components/LiveMode.svelte";
   import Settings from "./components/Settings.svelte";
+  import { playInteractionPing } from "./utils/audio";
 
   let initialized = false;
   let isLiveMode = false;
+  let liveModeRef;
 
   let processedMsgIds = new Set();
 
   onMount(async () => {
+    const stored = await chrome.storage.local.get([
+      "messages",
+      "onboarding_seen",
+    ]);
     const detailedPrompt = (text) =>
       text === "Visual Analysis of Section"
         ? "Can you give me a deep dive into this section?"
@@ -22,6 +28,7 @@
     const triggerIfNew = (msgId, text) => {
       if (processedMsgIds.has(msgId)) return;
       processedMsgIds.add(msgId);
+      playInteractionPing("focus");
       handleQuestion(detailedPrompt(text));
     };
 
@@ -69,10 +76,12 @@
       });
 
       if (response.error) throw new Error(response.error);
-      messages.update((m) => [
-        ...m,
-        { role: "assistant", content: response.answer },
-      ]);
+      const answer = response.answer;
+      messages.update((m) => [...m, { role: "assistant", content: answer }]);
+
+      if (isLiveMode && liveModeRef) {
+        liveModeRef.speak(answer);
+      }
     } catch (e) {
       messages.update((m) => [
         ...m,
@@ -107,7 +116,12 @@
   {/if}
 
   {#if isLiveMode}
-    <LiveMode on:close={() => (isLiveMode = false)} />
+    <LiveMode
+      bind:this={liveModeRef}
+      isOpen={true}
+      on:close={() => (isLiveMode = false)}
+      on:submit={(e) => handleQuestion(e.detail)}
+    />
   {/if}
 
   {#if $showSettings}

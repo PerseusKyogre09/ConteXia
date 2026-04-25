@@ -4,6 +4,9 @@ import { gsap } from 'gsap';
 let hoveredText = '';
 let overlay = null;
 let dwellManager = null;
+let lastSelection = '';
+let lastHover = '';
+let isExtracting = false;
 
 class DwellTrigger {
     constructor() {
@@ -95,7 +98,6 @@ class DwellTrigger {
         const el = e.target;
         if (el === this.chip || this.chip.contains(el)) return;
 
-        // Grace distance: don't hide if mouse is close to the chip
         if (this.chip.style.opacity === '1') {
             const rect = this.chip.getBoundingClientRect();
             const dx = e.clientX - (rect.left + rect.width / 2);
@@ -198,6 +200,10 @@ class DwellTrigger {
 
 if (!dwellManager) {
     dwellManager = new DwellTrigger();
+}
+
+function createPresenceChip(type, text) {
+    if (document.getElementById('contexia-chip')) return;
 }
 
 class InkOverlay {

@@ -2,7 +2,8 @@
     import { onMount, createEventDispatcher, tick } from "svelte";
     import { Mic, X, Volume2 } from "lucide-svelte";
     import { fade, fly, scale } from "svelte/transition";
-    import { isListening, isLoading } from "../store";
+    import { isListening, isLoading, cartesiaVoiceId } from "../store";
+    import { speakWithCartesia } from "../utils/audio";
     import { gsap } from "gsap";
 
     export let isOpen = false;
@@ -92,22 +93,22 @@
         recognition.stop();
     }
 
-    export function speak(text) {
-        if (!window.speechSynthesis) return;
-
-        recognition.stop();
+    export async function speak(text) {
+        if (recognition) recognition.stop();
         isSpeaking = true;
 
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.1;
-        utterance.pitch = 1.0;
-
-        utterance.onend = () => {
+        try {
+            await speakWithCartesia(text);
+        } catch (e) {
+            console.error("Cartesia speak failed:", e);
+        } finally {
             isSpeaking = false;
-            if (isOpen) recognition.start();
-        };
-
-        window.speechSynthesis.speak(utterance);
+            if (isOpen && recognition) {
+                try {
+                    recognition.start();
+                } catch (e) {}
+            }
+        }
     }
 
     function close() {
