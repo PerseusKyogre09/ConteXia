@@ -1,11 +1,39 @@
-import { get } from 'svelte/store';
+import { get, writable } from 'svelte/store';
 import { currentCartesiaKey, cartesiaVoiceId } from '../store';
 
+export const audioVolume = writable(0);
+
 let audioCtx;
+let currentSource = null;
+let analyser;
+let micStream;
+let micSource;
+
+function sanitizeForTTS(text) {
+    return text
+        .replace(/[*_#~`]/g, '') // Remove markdown symbols
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove links, keep text
+        .replace(/!\[([^\]]+)\]\([^)]+\)/g, '') // Remove images
+        .replace(/<[^>]*>?/gm, '') // Remove any HTML tags
+        .trim();
+}
+
+export function stopAllAudio() {
+    if (currentSource) {
+        try { currentSource.stop(); } catch (e) { }
+        currentSource = null;
+    }
+    if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+    }
+}
 
 async function getAudioCtx() {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        startVolumeTracking();
     }
     if (audioCtx.state === 'suspended') {
         try { await audioCtx.resume(); } catch (e) { }
@@ -13,26 +41,62 @@ async function getAudioCtx() {
     return audioCtx;
 }
 
+function startVolumeTracking() {
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+    const update = () => {
+        analyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+            sum += dataArray[i];
+        }
+        const average = sum / dataArray.length;
+        audioVolume.set(average / 128); // Normalize to ~0.0 - 1.0 range
+        requestAnimationFrame(update);
+    };
+    update();
+}
+
+export async function startMicVolume() {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const ctx = await getAudioCtx();
+        micStream = stream;
+        micSource = ctx.createMediaStreamSource(stream);
+        micSource.connect(analyser); // We DON'T connect to ctx.destination (no feedback)
+    } catch (e) {
+        console.error("Mic volume tracking failed:", e);
+    }
+}
+
+export function stopMicVolume() {
+    if (micSource) {
+        micSource.disconnect();
+        micSource = null;
+    }
+    if (micStream) {
+        micStream.getTracks().forEach(t => t.stop());
+        micStream = null;
+    }
+}
+
 export async function speakWithCartesia(text) {
     const apiKey = get(currentCartesiaKey);
     const voiceId = get(cartesiaVoiceId);
+    const sanitized = sanitizeForTTS(text);
 
     if (!apiKey) {
-        return fallbackSpeak(text);
+        return fallbackSpeak(sanitized);
     }
 
     try {
-        // Proxy through background to avoid CORS/Origin blocks
         const response = await chrome.runtime.sendMessage({
             type: 'CARTESIA_TTS',
-            payload: { transcript: text, voiceId, apiKey }
+            payload: { transcript: sanitized, voiceId, apiKey }
         });
 
         if (!response || response.error) {
             throw new Error(response?.error || "Background fetch failed");
         }
-
-        // Convert base64 back to ArrayBuffer
         const binaryString = atob(response.data);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
@@ -52,7 +116,7 @@ export async function speakWithCartesia(text) {
 function fallbackSpeak(text) {
     return new Promise((resolve) => {
         if (!window.speechSynthesis) return resolve();
-        window.speechSynthesis.cancel();
+        stopAllAudio();
         const ut = new SpeechSynthesisUtterance(text);
         ut.onend = resolve;
         ut.onerror = resolve;
@@ -87,10 +151,15 @@ async function playAudioBuffer(audioBuffer) {
     const ctx = await getAudioCtx();
     const source = ctx.createBufferSource();
     source.buffer = audioBuffer;
-    source.connect(ctx.destination);
+    source.connect(analyser);
+    source.connect(ctx.destination); // Connect speech to speakers explicitly
 
     return new Promise((resolve) => {
-        source.onended = resolve;
+        source.onended = () => {
+            currentSource = null;
+            resolve();
+        };
+        currentSource = source;
         source.start();
     });
 }
