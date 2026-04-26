@@ -7,16 +7,29 @@
 
 ---
 
+## 🏆 Hackathon Submission: Context & Audio
+
+### How ConteXia Understands Context
+ConteXia employs a multi-modal approach to grounding AI responses in the user's active environment:
+1. **Visual Grounding (Spatial Scan)**: Bypasses standard DOM scrapers using `chrome.tabs.captureVisibleTab`. This allows the AI to "see" diagrams, layouts, and OCR non-selectable content in PDFs or images.
+2. **Dwell Intelligence**: Monitors "interaction signals" like scroll speed and paragraph-level dwell time. If a user spends an outlier amount of time on a dense section, ConteXia proactively offers a simplified audio summary.
+3. **Directed Attention**: Dynamically ingests hover-states and text selections, ensuring the AI response is weighted toward the user’s immediate point of focus.
+
+### The Role of Audio
+Audio is not an afterthought in ConteXia—it is the primary interface.
+1. **Presence Mode**: A speech-to-speech interaction layer using **Groq** and **Cartesia**. It treats conversation as a hands-free, ethereal dialogue.
+2. **Barge-In Logic**: Real-time microphone monitoring allows users to interrupt the AI response naturally, creating a fluid back-and-forth that mimics human collaborative reading.
+3. **Contextual Alerts**: Uses subtle audio chimes to signal when it has extra context or an "Ink Mind" annotation available, reducing visual cognitive load.
+
+---
+
 ## 🧠 Intelligence & Deep Features
 
-ConteXia is a multi-modal context engine disguised as a nature-themed sidepanel.
-
--   **Vision Mapping (Spatial Scan)**: Bypasses traditional text scrapers using dynamic viewport capture (via `chrome.tabs.captureVisibleTab`). Understands layouts, diagrams, and OCRs non-selectable content in real-time.
--   **Tree Log Interface**: A reactive physics UI using **9-slice bark textures** and Svelte transitions. The input interface scales vertically with your thoughts, providing a physical, textured feel to digital dialogue.
--   **Presence (Liquid Audio)**: An ultra-low latency STT/TTS pipeline (Groq + Cartesia) with frequency-reactive gooey blob physics. Implements **barge-in** logic, allowing users to interrupt the AI for natural, human-like turn-taking.
--   **Boutique Annotation Ink**: A Shadow DOM-isolated canvas layer for SILKY smooth digital ink. Uses quadratic curve interpolation for a high-fidelity "stationery" feel that persists across page refreshes.
--   **Dwell Intelligence**: Silent background "Reading Sentinel" that monitors focus patterns and scroll density to offer proactive help exactly when you encounter complex sections.
--   **Production Hardening**: Persistent rate limiting (10 RPM Groq, 20 RPM Cartesia) and secure key management, ensuring reliability for multi-user demonstrations.
+-   **Vision Mapping (Spatial Scan)**: High-fidelity viewport capture to understand any visual surface.
+-   **Tree Log Interface**: A nature-themed, 9-slice reactive UI that grows with your thoughts.
+-   **Presence (Liquid Audio)**: Sub-500ms latency STT/TTS pipeline with real-time frequency-reactive visualizations.
+-   **Boutique Annotation Ink**: Persistently annotate the web with smooth, stationer-grade digital strokes.
+-   **Production Hardening**: Persistent rate limiting and multi-model fallbacks for high availability.
 
 ---
 
@@ -25,40 +38,28 @@ ConteXia is a multi-modal context engine disguised as a nature-themed sidepanel.
 -   **Frontend**: Svelte (Vite) + Tailwind CSS v4
 -   **Reasoning**: **Groq** (Llama 3.3 70B & Vision models)
 -   **Voice**: **Cartesia Sonic-3** (Premium TTS)
--   **Motion**: GSAP for fluid, stationery-inspired transitions.
+-   **Motion**: GSAP for liquid physics and fluid transitions.
 
 ---
 
 ## 🚀 Installation
 
 ### 1. Configure Keys
-ConteXia requires API keys for Groq and Cartesia. Create a `.env` file in the root directory:
+Create a `.env` file in the root directory with your API keys:
 ```bash
 cp .env.example .env
 ```
 
-### 2. Build for Chrome
-Since this is a Vite-powered extension, it needs to be built before loading into Chrome:
+### 2. Build and Load
 ```bash
-# Install dependencies
 npm install
-
-# Create the production build
 npm run build
 ```
-
-### 3. Load into Browser
-1. Open **Chrome** and navigate to `chrome://extensions/`.
-2. Toggle **Developer mode** to **ON** (top-right).
-3. Click **Load unpacked** and select the **`dist`** folder (generated in step 2).
-
-> [!CAUTION]
-> **Do NOT load the root project folder.** Chrome will fail with a syntax error because the source code isn't bundled yet. You must load the `dist` folder.
+Load the **`dist`** folder into Chrome via `chrome://extensions/` with **Developer mode** enabled.
 
 ---
 
 ## 🛡️ Usage & Limits
-To keep things moving smoothly during the beta:
 - **Chat**: 10 requests / min
 - **Voice**: 20 requests / min
 
