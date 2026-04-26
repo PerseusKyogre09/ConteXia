@@ -8,6 +8,7 @@
     tone,
     preferVoice,
     proactiveHint,
+    currentSelection,
   } from "./store";
   import Header from "./components/Header.svelte";
   import ChatList from "./components/ChatList.svelte";
@@ -25,46 +26,29 @@
   let initialized = false;
   let isLiveMode = false;
   let liveModeRef;
-  let processedMsgIds = new Set();
+  const processedMsgIds = new Set();
 
-  onMount(async () => {
-    const handleNavigationCommand = (payload) => {
-      const { action, text, msgId, timestamp } = payload;
-      if (timestamp && Date.now() - timestamp > 15000) return;
-      if (processedMsgIds.has(msgId)) return;
+  onMount(() => {
+    setInterval(pollSelection, 1000);
+    setTimeout(checkSurfaceContent, 1000);
 
-      processedMsgIds.add(msgId);
-      playInteractionPing("focus");
-
-      const prompts = {
-        SUMMARIZE: text
-          ? `Summarize this: "${text}"`
-          : "Can you summarize what I'm looking at?",
-        EXPLAIN: text
-          ? `Give me a deep dive and comprehensive breakdown of this: "${text}"`
-          : "Give me a deep dive and comprehensive breakdown of everything I'm seeing here.",
-        READ_ALOUD: text
-          ? `Read this aloud: "${text}"`
-          : "Read what's on this page aloud for me",
-      };
-
-      if (prompts[action]) {
-        handleQuestion(prompts[action], action === "READ_ALOUD");
-      }
+    const tabUpdate = (id, change) => {
+      if (change.status === "complete" || change.url) checkSurfaceContent();
     };
 
+    chrome.tabs.onUpdated.addListener(tabUpdate);
+    chrome.tabs.onActivated.addListener(() => checkSurfaceContent());
+
     chrome.runtime.onMessage.addListener((msg) => {
-      if (msg.type === "PUSH_SELECTION") {
-        handleQuestion(`What do you think about this? "${msg.payload}"`);
+      if (msg.type === "PUSH_SELECTION" || msg.type === "SELECTION_UPDATED") {
+        currentSelection.set(msg.payload || "");
       } else if (msg.type === "APP_COMMAND") {
         handleNavigationCommand(msg.payload);
       } else if (msg.type === "PROACTIVE_DWELL_SIGNAL") {
         playProactiveChime("smart");
         proactiveHint.set({ type: "smart", text: msg.payload.text });
       } else if (msg.type === "PROACTIVE_HEADING_ENTERED") {
-        if ($preferVoice) {
-          speak(msg.payload, { volume: 0.3 });
-        }
+        if ($preferVoice) speak(msg.payload);
       } else if (msg.type === "PROACTIVE_VISION_HOVER_SIGNAL") {
         playProactiveChime("vision");
         proactiveHint.set({ type: "vision", text: "Analyzing visual..." });
@@ -80,14 +64,99 @@
     });
   });
 
-  async function handleVisionHover() {
+  async function checkSurfaceContent() {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      lastFocusedWindow: true,
+    });
+    if (!tab?.id) return;
+
+    const url = tab.url?.toLowerCase() || "";
+    const isPDF =
+      url.endsWith(".pdf") ||
+      url.includes("/pdf/") ||
+      url.includes(".pdf?") ||
+      url.startsWith("file://") ||
+      url.startsWith("blob:") ||
+      tab.title?.toLowerCase().endsWith(".pdf");
+
+    try {
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        type: "GET_CONTEXT",
+      });
+      if (
+        isPDF &&
+        (!response.visibleViewportText ||
+          response.visibleViewportText.length < 150)
+      ) {
+        proactiveHint.set({
+          type: "vision",
+          text: "Static surface detected. Scan page layout?",
+        });
+      }
+      currentSelection.set(response.selectedText || "");
+    } catch (e) {
+      currentSelection.set("");
+      if (isPDF) {
+        proactiveHint.set({
+          type: "vision",
+          text: "PDF / Image detected. Perform visual scan?",
+        });
+      }
+    }
+  }
+
+  async function pollSelection() {
+    const [tab] = await chrome.tabs.query({
+      active: true,
+      lastFocusedWindow: true,
+    });
+    if (!tab?.id || tab.url?.startsWith("chrome://")) return;
+    try {
+      const resp = await chrome.tabs.sendMessage(tab.id, {
+        type: "GET_SELECTION",
+      });
+      if (resp?.selection !== undefined) currentSelection.set(resp.selection);
+    } catch (e) {}
+  }
+
+  function handleNavigationCommand(payload) {
+    const { action, text, msgId, timestamp } = payload;
+    if (timestamp && Date.now() - timestamp > 15000) return;
+    if (processedMsgIds.has(msgId)) return;
+
+    processedMsgIds.add(msgId);
+    playInteractionPing("focus");
+
+    const prompts = {
+      SUMMARIZE: text
+        ? `Summarize this: "${text}"`
+        : "Can you summarize what I'm looking at?",
+      EXPLAIN: text
+        ? `Explain this in detail: "${text}"`
+        : "Explain everything on this page in detail.",
+      READ_ALOUD: text
+        ? `Read this aloud: "${text}"`
+        : "Read what's on this page aloud.",
+      PRONOUNCE: `How do I pronounce "${text}"? Please give me a brief phonetic breakdown and read it aloud clearly.`,
+    };
+
+    if (prompts[action]) {
+      handleQuestion(
+        prompts[action],
+        action === "READ_ALOUD" || action === "PRONOUNCE",
+      );
+    }
+  }
+
+  async function handleVisionScan() {
     isLoading.set(true);
     try {
       const response = await chrome.runtime.sendMessage({
         type: "ASK_GROQ",
         payload: {
           question:
-            "Synthesize this visual focus into a sharp, insightful 1-2 sentence summary. Look for specific labels, data points, or relationships (e.g. 'a Pokemon type dominance chart' or 'a trend of rising costs'). Avoid generic 'this is a diagram' language—tell me the core takeaway.",
+            "Perform a high-level spatial scan of this viewport. Identify layout, key sections, and visual findings. Provide a 2-sentence summary and suggest how I can help.",
           apiKey: $apiKey,
           tone: $tone,
           history: [],
@@ -98,13 +167,11 @@
           ...m,
           { role: "assistant", content: response.answer, isVision: true },
         ]);
-        if ($preferVoice) {
-          speak(response.answer);
-        }
+        if ($preferVoice) speak(response.answer);
         proactiveHint.set(null);
       }
     } catch (e) {
-      console.error("Vision hover failed", e);
+      console.error(e);
     } finally {
       isLoading.set(false);
     }
@@ -112,7 +179,6 @@
 
   async function handleQuestion(text, autoSpeak = false) {
     if (!text.trim()) return;
-
     proactiveHint.set(null);
     messages.update((m) => [...m, { role: "user", content: text }]);
     isLoading.set(true);
@@ -168,7 +234,7 @@
     <InputArea
       on:submit={(e) =>
         handleQuestion(e.detail.text || e.detail, e.detail.autoSpeak)}
-      on:triggerVision={handleVisionHover}
+      on:triggerVision={handleVisionScan}
       on:openLive={() => (isLiveMode = true)}
     />
   {/if}

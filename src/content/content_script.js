@@ -3,7 +3,6 @@ import { gsap } from 'gsap';
 
 let hoveredText = '';
 let overlay = null;
-let isExtracting = false;
 
 class InkOverlay {
     constructor() {
@@ -97,24 +96,9 @@ class InkOverlay {
                 box-shadow: 0 4px 0 #064E3B;
                 transition: all 0.1s;
             }
-            .ink-btn:active {
-                transform: translateY(2px);
-                box-shadow: 0 2px 0 #064E3B;
-            }
-            .ink-sep {
-                height: 1px;
-                background: #064E3B;
-                opacity: 0.2;
-                margin: 5px 0;
-            }
-            .ink-color {
-                width: 24px;
-                height: 24px;
-                border-radius: 50%;
-                cursor: pointer;
-                border: 2px solid transparent;
-                transition: transform 0.2s;
-            }
+            .ink-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #064E3B; }
+            .ink-sep { height: 1px; background: #064E3B; opacity: 0.2; margin: 5px 0; }
+            .ink-color { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.2s; }
             .ink-color.active { border-color: #064E3B; transform: scale(1.1); }
         `;
         document.head.appendChild(style);
@@ -140,7 +124,6 @@ class InkOverlay {
 
     draw(e) {
         if (!this.drawing) return;
-
         this.points.push({ x: e.clientX, y: e.clientY });
         if (this.points.length < 3) return;
 
@@ -178,73 +161,73 @@ document.addEventListener('mouseover', (e) => {
 }, { passive: true });
 
 document.addEventListener('mouseout', (e) => {
-    stopDwellTracking(e.target);
+    stopDwellTracking();
 }, { passive: true });
 
-let dwellTimer = null;
-let currentDwellElement = null;
+let dwell = { timer: null, el: null };
 
 function startDwellTracking(el) {
-    if (currentDwellElement === el) return;
+    if (dwell.el === el) return;
     stopDwellTracking();
 
-    const denseTags = ['P', 'BLOCKQUOTE', 'LI', 'ARTICLE', 'SECTION'];
-    if (!denseTags.includes(el.tagName)) return;
+    const dense = ['P', 'BLOCKQUOTE', 'LI', 'ARTICLE', 'SECTION'];
+    if (!dense.includes(el.tagName)) return;
 
     const text = el.innerText?.trim() || "";
     if (text.length < 200) return;
 
-    currentDwellElement = el;
-    dwellTimer = setTimeout(() => {
+    dwell.el = el;
+    dwell.timer = setTimeout(() => {
         chrome.runtime.sendMessage({
             type: 'DWELL_SIGNAL',
-            payload: {
-                text: text.slice(0, 1000),
-                tagName: el.tagName
-            }
+            payload: { text: text.slice(0, 1000), tagName: el.tagName }
         });
     }, 8000);
 }
 
 function stopDwellTracking() {
-    if (dwellTimer) clearTimeout(dwellTimer);
-    dwellTimer = null;
-    currentDwellElement = null;
+    if (dwell.timer) clearTimeout(dwell.timer);
+    dwell.timer = null;
+    dwell.el = null;
 }
 
-const headingObserver = new IntersectionObserver((entries) => {
+new IntersectionObserver((entries) => {
     entries.forEach(entry => {
         if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
             const text = entry.target.innerText?.trim();
             if (text) {
-                chrome.runtime.sendMessage({
-                    type: 'HEADING_ENTERED',
-                    payload: text
-                });
+                chrome.runtime.sendMessage({ type: 'HEADING_ENTERED', payload: text });
             }
         }
     });
 }, { threshold: 0.5 });
 
-observeHeadings();
+const observeHeadings = () => {
+    document.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => observer.observe(h));
+};
 
-let visionHoverTimer = null;
+let vhTimer = null;
 document.addEventListener('mousemove', (e) => {
     const target = e.target;
-    const isVisionTarget = ['IMG', 'CANVAS', 'SVG'].includes(target.tagName) ||
+    const isVision = ['IMG', 'CANVAS', 'SVG'].includes(target.tagName) ||
         (target.tagName === 'DIV' && window.getComputedStyle(target).backgroundImage !== 'none');
 
-    if (isVisionTarget) {
-        if (visionHoverTimer) return;
-        visionHoverTimer = setTimeout(() => {
+    if (isVision) {
+        if (vhTimer) return;
+        vhTimer = setTimeout(() => {
             chrome.runtime.sendMessage({ type: 'VISION_HOVER_SIGNAL' });
         }, 1500);
     } else {
-        if (visionHoverTimer) {
-            clearTimeout(visionHoverTimer);
-            visionHoverTimer = null;
+        if (vhTimer) {
+            clearTimeout(vhTimer);
+            vhTimer = null;
         }
     }
+});
+
+document.addEventListener('selectionchange', () => {
+    const sel = window.getSelection().toString().trim();
+    chrome.runtime.sendMessage({ type: 'SELECTION_UPDATED', payload: sel });
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -256,8 +239,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             url: window.location.href,
             pageTitle: document.title
         });
-    }
-    if (request.type === 'TOGGLE_PEN') {
+    } else if (request.type === 'GET_SELECTION') {
+        sendResponse({ selection: getSelectedText() });
+    } else if (request.type === 'TOGGLE_PEN') {
         if (!overlay) {
             overlay = new InkOverlay();
             overlay.activate();

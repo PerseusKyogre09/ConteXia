@@ -9,6 +9,7 @@
         BookOpen,
         Volume2,
         Square,
+        X,
     } from "lucide-svelte";
     import {
         isListening,
@@ -18,17 +19,17 @@
         isSpeaking,
         apiKey,
         proactiveHint,
+        currentSelection,
     } from "../store";
     import { speak, stopAllAudio } from "../utils/audio";
     import { AudioRecorder } from "../utils/recorder";
     import { fade, slide, fly } from "svelte/transition";
-    import { X } from "lucide-svelte";
 
     const dispatch = createEventDispatcher();
     let text = "";
     let isPenActive = false;
-    let isRecordingWhisper = false;
-    let isProcessingWhisper = false;
+    let isRecording = false;
+    let isProcessing = false;
 
     const recorder = new AudioRecorder();
 
@@ -38,40 +39,26 @@
         });
 
         const handleKeyDown = async (e) => {
-            if (
-                e.code === "Space" &&
-                !isRecordingWhisper &&
-                !isProcessingWhisper
-            ) {
+            if (e.code === "Space" && !isRecording && !isProcessing) {
                 const active = document.activeElement;
                 if (
                     active.tagName !== "TEXTAREA" &&
                     active.tagName !== "INPUT"
                 ) {
                     e.preventDefault();
-                    const success = await recorder.start();
-                    if (success) {
-                        isRecordingWhisper = true;
-                    } else {
-                        alert(
-                            "Microphone access failed. Please ensure permissions are granted in settings.",
-                        );
-                    }
+                    if (await recorder.start()) isRecording = true;
                 }
             }
         };
 
         const handleKeyUp = async (e) => {
-            if (e.code === "Space" && isRecordingWhisper) {
+            if (e.code === "Space" && isRecording) {
                 e.preventDefault();
-                isRecordingWhisper = false;
-                isProcessingWhisper = true;
-
+                isRecording = false;
+                isProcessing = true;
                 const blob = await recorder.stop();
-                if (blob) {
-                    await transcribeAudio(blob);
-                }
-                isProcessingWhisper = false;
+                if (blob) await transcribe(blob);
+                isProcessing = false;
             }
         };
 
@@ -86,32 +73,20 @@
     });
 
     async function handleMicClick() {
-        if ($isSpeaking) {
-            stopAllAudio();
-            return;
-        }
+        if ($isSpeaking) return stopAllAudio();
 
-        if (isRecordingWhisper) {
-            isRecordingWhisper = false;
-            isProcessingWhisper = true;
+        if (isRecording) {
+            isRecording = false;
+            isProcessing = true;
             const blob = await recorder.stop();
-            if (blob) {
-                await transcribeAudio(blob);
-            }
-            isProcessingWhisper = false;
+            if (blob) await transcribe(blob);
+            isProcessing = false;
         } else {
-            const success = await recorder.start();
-            if (success) {
-                isRecordingWhisper = true;
-            } else {
-                alert(
-                    "Microphone access failed. Please ensure permissions are granted in settings.",
-                );
-            }
+            if (await recorder.start()) isRecording = true;
         }
     }
 
-    async function transcribeAudio(blob) {
+    async function transcribe(blob) {
         const reader = new FileReader();
         reader.readAsDataURL(blob);
         return new Promise((resolve) => {
@@ -123,20 +98,15 @@
                 try {
                     const response = await chrome.runtime.sendMessage({
                         type: "GROQ_TRANSCRIPTION",
-                        payload: {
-                            base64Audio,
-                            apiKey: $apiKey,
-                        },
+                        payload: { base64Audio, apiKey: $apiKey },
                     });
 
                     if (response.text) {
                         text = response.text;
-                        if (text.length > 3) {
-                            submit(true);
-                        }
+                        if (text.length > 3) submit(true);
                     }
                 } catch (err) {
-                    console.error("Transcription failed:", err);
+                    console.error(err);
                 }
                 resolve();
             };
@@ -146,7 +116,7 @@
     async function togglePen() {
         const [tab] = await chrome.tabs.query({
             active: true,
-            currentWindow: true,
+            lastFocusedWindow: true,
         });
         if (!tab?.id) return;
 
@@ -155,7 +125,7 @@
                 await chrome.extension.isAllowedFileSchemeAccess();
             if (!isAllowed) {
                 alert(
-                    'To annotate local files (like PDFs), please enable "Allow access to file URLs" in ConteXia settings.',
+                    'Please enable "Allow access to file URLs" in ConteXia settings to annotate PDFs.',
                 );
                 return;
             }
@@ -186,7 +156,6 @@
     }
 
     let recognition;
-
     onMount(() => {
         const SpeechRecognition =
             window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -194,45 +163,22 @@
             recognition = new SpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
-
-            recognition.onresult = (event) => {
-                text = Array.from(event.results)
-                    .map((result) => result[0].transcript)
+            recognition.onresult = (e) => {
+                text = Array.from(e.results)
+                    .map((r) => r[0].transcript)
                     .join("");
             };
-
-            recognition.onerror = (event) => {
-                if (event.error === "not-allowed") {
-                    alert(
-                        'Microphone blocked. Please use "Activate Microphone" in Settings once.',
-                    );
-                }
-                isListening.set(false);
-            };
-
-            recognition.onend = () => {
-                isListening.set(false);
-            };
+            recognition.onerror = () => isListening.set(false);
+            recognition.onend = () => isListening.set(false);
         }
-
         return () => {
             if (recognition) recognition.stop();
         };
     });
 
     function toggleVoice() {
-        if ($isSpeaking) {
-            stopAllAudio();
-            return;
-        }
-
-        if (!recognition) {
-            addMessage(
-                "assistant",
-                "Your browser doesn't seem to support speech recognition. We can still chat via text though!",
-            );
-            return;
-        }
+        if ($isSpeaking) return stopAllAudio();
+        if (!recognition) return;
 
         if ($isListening) {
             recognition.stop();
@@ -241,39 +187,43 @@
             try {
                 recognition.start();
                 isListening.set(true);
-            } catch (e) {
+            } catch {
                 isListening.set(false);
-                addMessage(
-                    "assistant",
-                    "I don't have permission to use your microphone yet. Please enable it in your browser settings so we can talk!",
-                );
             }
         }
     }
 
-    function handleSummarize() {
-        text = "Summarize this page for me please.";
-        submit();
-    }
-
-    function handleExplain() {
-        text =
-            "Explain everything on this page in detail, breaking it down in easy language.";
-        submit();
-    }
-
-    function handleReadAloud() {
-        const lastAiMsg = [...$messages]
+    const quickAction = (q, auto = false) => {
+        text = q;
+        submit(auto);
+    };
+    const handleSummarize = () =>
+        quickAction("Summarize this page for me please.");
+    const handleExplain = () =>
+        quickAction(
+            "Explain everything on this page in detail, breaking it down in easy language.",
+        );
+    const handleReadAloud = () => {
+        const lastAi = [...$messages]
             .reverse()
             .find((m) => m.role === "assistant");
-        if (lastAiMsg) {
+        if (lastAi) {
             stopAllAudio();
-            speak(lastAiMsg.content);
-        } else {
+            speak(lastAi.content);
+        } else
+            quickAction(
+                "Tell me briefly what this page is about and read it aloud.",
+                true,
+            );
+    };
+
+    function handlePronounce() {
+        if ($currentSelection) {
             dispatch("submit", {
-                text: "Tell me briefly what this page is about and read it aloud.",
+                text: `How do I pronounce "${$currentSelection}"? Please give me a brief phonetic breakdown and read it aloud clearly.`,
                 autoSpeak: true,
             });
+            currentSelection.set("");
         }
     }
 </script>
@@ -293,12 +243,12 @@
                 >
                     <button
                         on:click={() => {
-                            if ($proactiveHint.type === "smart") {
-                                text = `Can you help me simplify or explain this section: "${$proactiveHint.text.slice(0, 100)}..."`;
-                                submit();
-                            } else if ($proactiveHint.type === "vision") {
+                            if ($proactiveHint.type === "smart")
+                                quickAction(
+                                    `Can you help me simplify or explain this section: "${$proactiveHint.text.slice(0, 100)}..."`,
+                                );
+                            else if ($proactiveHint.type === "vision")
                                 dispatch("triggerVision");
-                            }
                             proactiveHint.set(null);
                         }}
                         class="flex items-center gap-2 px-4 py-2 bg-accent text-background rounded-full shadow-2xl border border-white/20 hover:scale-105 transition-all group"
@@ -309,7 +259,7 @@
                         >
                             {$proactiveHint.type === "smart"
                                 ? "Simplify this section?"
-                                : "Analyze visual focus?"}
+                                : "Perform Spatial Scan?"}
                         </span>
                         <div
                             role="button"
@@ -367,12 +317,28 @@
                     >Read Aloud</span
                 >
             </button>
+
+            <button
+                on:click={handlePronounce}
+                disabled={!$currentSelection}
+                class="flex items-center gap-1.5 px-3 py-1.5 border rounded-full transition-all group animate-in fade-in zoom-in duration-300 {!$currentSelection
+                    ? 'opacity-30 grayscale cursor-not-allowed bg-surface/20 border-border/20'
+                    : 'bg-accent/10 hover:bg-accent/20 border-accent/30'}"
+            >
+                <Volume2
+                    size={12}
+                    class="text-accent group-hover:scale-110 transition-transform"
+                />
+                <span class="text-[10px] font-bold text-accent tracking-wide"
+                    >Pronounce</span
+                >
+            </button>
         </div>
 
         <div
             class="relative flex items-end gap-3 bg-surface/60 backdrop-blur-xl border border-border/40 rounded-sm p-3 transition-all inset-shadow ink-border group focus-within:border-accent/40"
         >
-            {#if isRecordingWhisper}
+            {#if isRecording}
                 <div
                     class="absolute inset-0 z-50 bg-highlight/10 backdrop-blur-md rounded-sm flex items-center justify-center gap-3 animate-pulse border-2 border-highlight/30"
                 >
@@ -392,7 +358,7 @@
                         >Listening...</span
                     >
                 </div>
-            {:else if isProcessingWhisper}
+            {:else if isProcessing}
                 <div
                     class="absolute inset-0 z-50 bg-background/40 backdrop-blur-md rounded-sm flex items-center justify-center gap-2"
                 >
@@ -406,15 +372,15 @@
             <div class="flex-shrink-0 pb-1">
                 <button
                     on:click={handleMicClick}
-                    class="p-2 rounded bg-background/40 border border-border/40 transition-all {isRecordingWhisper
+                    class="p-2 rounded bg-background/40 border border-border/40 transition-all {isRecording
                         ? 'text-red-500 animate-pulse shadow-glow-blue'
                         : $isSpeaking
                           ? 'text-highlight scale-110'
                           : 'text-accent hover:text-highlight'}"
                     title="Click to Toggle (Spacebar holds to Talk)"
                 >
-                    {#if $isSpeaking && !isRecordingWhisper}
-                        <Square size={16} on:click={stopAllAudio} />
+                    {#if $isSpeaking && !isRecording}
+                        <Square size={16} />
                     {:else}
                         <Mic size={16} />
                     {/if}
@@ -444,7 +410,6 @@
                 >
                     <PenLine size={18} />
                 </button>
-
                 <button
                     on:click={() => dispatch("openLive")}
                     class="p-2 rounded-full text-accent hover:text-highlight transition-all hover:bg-highlight/5"
@@ -452,7 +417,6 @@
                 >
                     <Headphones size={18} />
                 </button>
-
                 <button
                     on:click={() => submit()}
                     disabled={!text.trim() || $isLoading}
@@ -465,7 +429,6 @@
                 </button>
             </div>
         </div>
-
         <div
             class="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-highlight/30 rounded-t-full"
         ></div>
