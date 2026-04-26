@@ -7,6 +7,7 @@
     showSettings,
     tone,
     preferVoice,
+    proactiveHint,
   } from "./store";
   import Header from "./components/Header.svelte";
   import ChatList from "./components/ChatList.svelte";
@@ -14,7 +15,12 @@
   import ApiKeyConfig from "./components/ApiKeyConfig.svelte";
   import LiveMode from "./components/LiveMode.svelte";
   import Settings from "./components/Settings.svelte";
-  import { playInteractionPing, speak, stopAllAudio } from "./utils/audio";
+  import {
+    playInteractionPing,
+    playProactiveChime,
+    speak,
+    stopAllAudio,
+  } from "./utils/audio";
 
   let initialized = false;
   let isLiveMode = false;
@@ -52,6 +58,16 @@
         handleQuestion(`What do you think about this? "${msg.payload}"`);
       } else if (msg.type === "APP_COMMAND") {
         handleNavigationCommand(msg.payload);
+      } else if (msg.type === "PROACTIVE_DWELL_SIGNAL") {
+        playProactiveChime("smart");
+        proactiveHint.set({ type: "smart", text: msg.payload.text });
+      } else if (msg.type === "PROACTIVE_HEADING_ENTERED") {
+        if ($preferVoice) {
+          speak(msg.payload, { volume: 0.3 });
+        }
+      } else if (msg.type === "PROACTIVE_VISION_HOVER_SIGNAL") {
+        playProactiveChime("vision");
+        proactiveHint.set({ type: "vision", text: "Analyzing visual..." });
       }
     });
 
@@ -64,9 +80,40 @@
     });
   });
 
+  async function handleVisionHover() {
+    isLoading.set(true);
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: "ASK_GROQ",
+        payload: {
+          question:
+            "Synthesize this visual focus into a sharp, insightful 1-2 sentence summary. Look for specific labels, data points, or relationships (e.g. 'a Pokemon type dominance chart' or 'a trend of rising costs'). Avoid generic 'this is a diagram' language—tell me the core takeaway.",
+          apiKey: $apiKey,
+          tone: $tone,
+          history: [],
+        },
+      });
+      if (response.answer) {
+        messages.update((m) => [
+          ...m,
+          { role: "assistant", content: response.answer, isVision: true },
+        ]);
+        if ($preferVoice) {
+          speak(response.answer);
+        }
+        proactiveHint.set(null);
+      }
+    } catch (e) {
+      console.error("Vision hover failed", e);
+    } finally {
+      isLoading.set(false);
+    }
+  }
+
   async function handleQuestion(text, autoSpeak = false) {
     if (!text.trim()) return;
 
+    proactiveHint.set(null);
     messages.update((m) => [...m, { role: "user", content: text }]);
     isLoading.set(true);
 
@@ -121,6 +168,7 @@
     <InputArea
       on:submit={(e) =>
         handleQuestion(e.detail.text || e.detail, e.detail.autoSpeak)}
+      on:triggerVision={handleVisionHover}
       on:openLive={() => (isLiveMode = true)}
     />
   {/if}

@@ -17,9 +17,12 @@
         messages,
         isSpeaking,
         apiKey,
+        proactiveHint,
     } from "../store";
     import { speak, stopAllAudio } from "../utils/audio";
     import { AudioRecorder } from "../utils/recorder";
+    import { fade, slide, fly } from "svelte/transition";
+    import { X } from "lucide-svelte";
 
     const dispatch = createEventDispatcher();
     let text = "";
@@ -279,8 +282,50 @@
     class="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background to-transparent pt-10 pointer-events-none"
 >
     <div class="relative pointer-events-auto flex flex-col gap-3">
-        <!-- Suggestions Chips -->
-        <div class="flex gap-2 animate-in slide-in-from-bottom-2 duration-500">
+        <div
+            class="flex gap-2 animate-in slide-in-from-bottom-2 duration-500 relative"
+        >
+            {#if $proactiveHint}
+                <div
+                    in:fly={{ y: 20, duration: 400 }}
+                    out:fade={{ duration: 200 }}
+                    class="absolute -top-12 left-0 right-0 flex justify-center z-50 px-4"
+                >
+                    <button
+                        on:click={() => {
+                            if ($proactiveHint.type === "smart") {
+                                text = `Can you help me simplify or explain this section: "${$proactiveHint.text.slice(0, 100)}..."`;
+                                submit();
+                            } else if ($proactiveHint.type === "vision") {
+                                dispatch("triggerVision");
+                            }
+                            proactiveHint.set(null);
+                        }}
+                        class="flex items-center gap-2 px-4 py-2 bg-accent text-background rounded-full shadow-2xl border border-white/20 hover:scale-105 transition-all group"
+                    >
+                        <Sparkles size={14} class="animate-pulse" />
+                        <span
+                            class="text-[11px] font-bold uppercase tracking-wider"
+                        >
+                            {$proactiveHint.type === "smart"
+                                ? "Simplify this section?"
+                                : "Analyze visual focus?"}
+                        </span>
+                        <div
+                            role="button"
+                            tabindex="0"
+                            class="ml-2 opacity-50 hover:opacity-100 transition-opacity p-1"
+                            on:click|stopPropagation={() =>
+                                proactiveHint.set(null)}
+                            on:keydown={(e) =>
+                                e.key === "Enter" && proactiveHint.set(null)}
+                        >
+                            <X size={14} />
+                        </div>
+                    </button>
+                </div>
+            {/if}
+
             <button
                 on:click={handleSummarize}
                 class="flex items-center gap-1.5 px-3 py-1.5 bg-surface/40 hover:bg-highlight/10 border border-border/20 hover:border-highlight/30 rounded-full transition-all group"
@@ -327,7 +372,6 @@
         <div
             class="relative flex items-end gap-3 bg-surface/60 backdrop-blur-xl border border-border/40 rounded-sm p-3 transition-all inset-shadow ink-border group focus-within:border-accent/40"
         >
-            <!-- Recording Overlays -->
             {#if isRecordingWhisper}
                 <div
                     class="absolute inset-0 z-50 bg-highlight/10 backdrop-blur-md rounded-sm flex items-center justify-center gap-3 animate-pulse border-2 border-highlight/30"
@@ -422,7 +466,6 @@
             </div>
         </div>
 
-        <!-- Gold accent line -->
         <div
             class="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-highlight/30 rounded-t-full"
         ></div>

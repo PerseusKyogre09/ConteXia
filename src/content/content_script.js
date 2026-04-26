@@ -5,8 +5,6 @@ let hoveredText = '';
 let overlay = null;
 let isExtracting = false;
 
-
-
 class InkOverlay {
     constructor() {
         this.canvas = null;
@@ -176,7 +174,78 @@ class InkOverlay {
 
 document.addEventListener('mouseover', (e) => {
     hoveredText = getSectionAroundElement(e.target);
+    startDwellTracking(e.target);
 }, { passive: true });
+
+document.addEventListener('mouseout', (e) => {
+    stopDwellTracking(e.target);
+}, { passive: true });
+
+let dwellTimer = null;
+let currentDwellElement = null;
+
+function startDwellTracking(el) {
+    if (currentDwellElement === el) return;
+    stopDwellTracking();
+
+    const denseTags = ['P', 'BLOCKQUOTE', 'LI', 'ARTICLE', 'SECTION'];
+    if (!denseTags.includes(el.tagName)) return;
+
+    const text = el.innerText?.trim() || "";
+    if (text.length < 200) return;
+
+    currentDwellElement = el;
+    dwellTimer = setTimeout(() => {
+        chrome.runtime.sendMessage({
+            type: 'DWELL_SIGNAL',
+            payload: {
+                text: text.slice(0, 1000),
+                tagName: el.tagName
+            }
+        });
+    }, 8000);
+}
+
+function stopDwellTracking() {
+    if (dwellTimer) clearTimeout(dwellTimer);
+    dwellTimer = null;
+    currentDwellElement = null;
+}
+
+const headingObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            const text = entry.target.innerText?.trim();
+            if (text) {
+                chrome.runtime.sendMessage({
+                    type: 'HEADING_ENTERED',
+                    payload: text
+                });
+            }
+        }
+    });
+}, { threshold: 0.5 });
+
+observeHeadings();
+
+let visionHoverTimer = null;
+document.addEventListener('mousemove', (e) => {
+    const target = e.target;
+    const isVisionTarget = ['IMG', 'CANVAS', 'SVG'].includes(target.tagName) ||
+        (target.tagName === 'DIV' && window.getComputedStyle(target).backgroundImage !== 'none');
+
+    if (isVisionTarget) {
+        if (visionHoverTimer) return;
+        visionHoverTimer = setTimeout(() => {
+            chrome.runtime.sendMessage({ type: 'VISION_HOVER_SIGNAL' });
+        }, 1500);
+    } else {
+        if (visionHoverTimer) {
+            clearTimeout(visionHoverTimer);
+            visionHoverTimer = null;
+        }
+    }
+});
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'GET_CONTEXT') {

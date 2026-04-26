@@ -29,6 +29,7 @@ export const currentCartesiaKey = derived(
 export const tone = writable('Casual');
 export const preferVoice = writable(false);
 export const showSettings = writable(false);
+export const proactiveHint = writable(null); // { type: 'smart'|'vision', text: string }
 
 
 chrome.storage.local.get(['groq_api_key', 'contexia_tone', 'use_custom_key', 'custom_api_key', 'cartesia_key', 'cartesia_voice_id', 'contexia_tts_engine']).then(data => {

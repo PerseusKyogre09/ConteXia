@@ -18,12 +18,19 @@
     let transcript = "";
     let recognition;
     let silenceTimer;
+    let idleCheckTimer;
     let isSpeaking = false;
-    let orbElement;
-    let ringElements = [];
-    let pulseTimeline;
 
-    let volumeUnsubscribe;
+    const IDLE_THRESHOLD = 120000;
+
+    function resetIdleTimer() {
+        clearTimeout(idleCheckTimer);
+        idleCheckTimer = setTimeout(() => {
+            if (isOpen && !isSpeaking && !$isLoading) {
+                speak("You there?");
+            }
+        }, IDLE_THRESHOLD);
+    }
 
     onMount(() => {
         const SpeechRecognition =
@@ -34,6 +41,7 @@
             recognition.interimResults = true;
 
             recognition.onresult = (event) => {
+                resetIdleTimer();
                 const current = Array.from(event.results)
                     .map((result) => result[0].transcript)
                     .join("");
@@ -49,6 +57,7 @@
                     if (transcript.trim() && !isSpeaking) {
                         dispatch("submit", transcript);
                         transcript = "";
+                        resetIdleTimer();
                     }
                 }, 1500);
             };
@@ -58,53 +67,16 @@
             };
         }
 
-        initGsap();
         startMicVolume();
-
-        volumeUnsubscribe = audioVolume.subscribe((v) => {
-            if (!orbElement) return;
-            const boost = 1 + v * 1.5;
-            gsap.to(orbElement, {
-                scale: 1.1 * boost,
-                duration: 0.1,
-                ease: "power2.out",
-                overwrite: "auto",
-            });
-            ringElements.forEach((ring, i) => {
-                if (!ring) return;
-                gsap.to(ring, {
-                    scale: (1 + i * 0.5) * (1 + v * 2.5),
-                    opacity:
-                        Math.max(0.1, 0.5 - i * 0.1) * (v > 0.05 ? 1 : 0.6),
-                    duration: 0.15,
-                    overwrite: "auto",
-                });
-            });
-        });
+        resetIdleTimer();
 
         return () => {
             if (recognition) recognition.stop();
-            if (volumeUnsubscribe) volumeUnsubscribe();
             stopMicVolume();
             clearTimeout(silenceTimer);
+            clearTimeout(idleCheckTimer);
         };
     });
-
-    $: if (isOpen && orbElement) {
-        initGsap();
-    }
-
-    async function initGsap() {
-        await tick();
-        if (!orbElement || ringElements.length === 0) return;
-        gsap.to(orbElement, {
-            boxShadow: "0 0 40px rgba(22, 163, 74, 0.4)",
-            duration: 2,
-            repeat: -1,
-            yoyo: true,
-            ease: "sine.inOut",
-        });
-    }
 
     $: if (isOpen && recognition) {
         try {
@@ -145,60 +117,17 @@
         </button>
 
         <div
-            class="relative flex items-center justify-center mb-12 h-96 w-full"
+            class="relative flex items-center justify-center mb-12 h-96 w-full overflow-hidden"
+            style="--volume: {$audioVolume};"
         >
-            <!-- Background Liquid Layer (Gooey Filter only applied here) -->
-            <div
-                class="absolute inset-0 flex items-center justify-center pointer-events-none"
-            >
-                {#each Array(3) as _, i}
-                    <div
-                        bind:this={ringElements[i]}
-                        class="absolute w-48 h-48 rounded-full border-2 border-accent/20 bg-accent/5"
-                        style="filter: url(#gooey-filter);"
-                    ></div>
-                {/each}
+            <div class="blob-wrapper">
+                <p><span></span></p>
+                <p><span></span></p>
             </div>
 
-            <!-- Main Bubble Orb -->
             <div
-                bind:this={orbElement}
-                class="relative w-64 h-64 rounded-full flex items-center justify-center z-10 shadow-2xl overflow-hidden"
-                transition:scale={{ duration: 500, start: 0.8 }}
-                style="background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4) 0%, rgba(34, 197, 94, 0.2) 50%, rgba(22, 163, 74, 0.4) 100%); border: 1px solid rgba(255,255,255,0.3); backdrop-blur: 40px;"
-            >
-                <!-- Internal Glow -->
-                <div
-                    class="absolute inset-0 bg-gradient-to-tr from-accent/20 to-transparent pointer-events-none"
-                ></div>
-
-                <div
-                    class="relative z-20 flex flex-col items-center justify-center"
-                >
-                    {#if $isLoading}
-                        <div class="flex gap-1">
-                            <div
-                                class="w-2 h-2 bg-accent rounded-full animate-bounce [animation-delay:-0.3s]"
-                            ></div>
-                            <div
-                                class="w-2 h-2 bg-accent rounded-full animate-bounce [animation-delay:-0.15s]"
-                            ></div>
-                            <div
-                                class="w-2 h-2 bg-accent rounded-full animate-bounce"
-                            ></div>
-                        </div>
-                    {:else if isSpeaking}
-                        <Volume2 size={56} class="text-accent animate-pulse" />
-                    {:else}
-                        <Mic
-                            size={56}
-                            class="text-accent {transcript
-                                ? 'scale-110 shadow-glow-green'
-                                : ''} transition-transform"
-                        />
-                    {/if}
-                </div>
-            </div>
+                class="relative z-20 flex flex-col items-center justify-center pointer-events-none"
+            ></div>
         </div>
 
         <svg style="position: absolute; width: 0; height: 0;">
@@ -249,4 +178,144 @@
 {/if}
 
 <style>
+    .blob-wrapper {
+        --size: calc(350px + var(--volume) * 150px);
+        position: absolute;
+        width: var(--size);
+        height: var(--size);
+        filter: url(#gooey-filter);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition:
+            width 0.2s,
+            height 0.2s;
+    }
+
+    .blob-wrapper span {
+        background: #16a34a;
+        position: absolute;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .blob-wrapper p {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+    }
+
+    .blob-wrapper p:nth-child(1) {
+        animation: skewing-child 0.2s ease-in-out infinite alternate;
+    }
+
+    .blob-wrapper p:nth-child(1) span {
+        width: calc(var(--size) / 10 + var(--volume) * 20px);
+        height: calc(var(--size) / 10 + var(--volume) * 20px);
+        margin: calc((var(--size) / 10 + var(--volume) * 20px) / -2);
+        animation: moving 2s cubic-bezier(0.97, 0.01, 0.12, 0.99) infinite
+            alternate;
+    }
+
+    .blob-wrapper p:nth-child(2) {
+        animation: squishing 1s ease-in-out infinite alternate;
+    }
+
+    .blob-wrapper p:nth-child(2) span {
+        width: calc(var(--size) / 4 + var(--volume) * 50px);
+        height: calc(var(--size) / 4 + var(--volume) * 50px);
+        top: 50%;
+        left: 50%;
+        margin: calc((var(--size) / 4 + var(--volume) * 50px) / -2);
+        animation: skewing 2s 1.5s ease-in-out infinite;
+    }
+
+    @keyframes skewing {
+        0% {
+            transform: skewX(6deg);
+        }
+        10% {
+            transform: skewX(-6deg);
+        }
+        20% {
+            transform: skewX(4deg);
+        }
+        30% {
+            transform: skewX(-4deg);
+        }
+        40% {
+            transform: skewX(2deg);
+        }
+        50% {
+            transform: skewX(-6deg);
+        }
+        55% {
+            transform: skewX(6deg);
+        }
+        60% {
+            transform: skewX(-5deg);
+        }
+        65% {
+            transform: skewX(5deg);
+        }
+        70% {
+            transform: skewX(-4deg);
+        }
+        75% {
+            transform: skewX(4deg);
+        }
+        80% {
+            transform: skewX(-3deg);
+        }
+        85% {
+            transform: skewX(3deg);
+        }
+        90% {
+            transform: skewX(-2deg);
+        }
+        95% {
+            transform: skewX(2deg);
+        }
+        100% {
+            transform: skewX(1deg);
+        }
+    }
+
+    @keyframes skewing-child {
+        0% {
+            transform: skewX(-10deg);
+        }
+        100% {
+            transform: skewX(10deg);
+        }
+    }
+
+    @keyframes moving {
+        0% {
+            transform: translate(calc(var(--size) / -2.5));
+        }
+        30% {
+            transform: translate(calc(var(--size) / -10));
+        }
+        70% {
+            transform: translate(calc(var(--size) / 10));
+        }
+        100% {
+            transform: translate(calc(var(--size) / 2.5));
+        }
+    }
+
+    @keyframes squishing {
+        10%,
+        40%,
+        80% {
+            transform: scale(1, 0.9);
+        }
+        0%,
+        30%,
+        60%,
+        100% {
+            transform: scale(0.9, 1);
+        }
+    }
 </style>

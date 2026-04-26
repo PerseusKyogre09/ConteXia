@@ -31,15 +31,6 @@
         setTimeout(() => (copiedId = null), 2000);
     }
 
-    function reveal(node) {
-        gsap.from(node, {
-            y: 20,
-            opacity: 0,
-            duration: 0.8,
-            ease: "power4.out",
-        });
-    }
-
     afterUpdate(() => {
         if (container) container.scrollTop = container.scrollHeight;
     });

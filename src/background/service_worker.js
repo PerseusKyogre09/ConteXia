@@ -93,6 +93,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
+    if (['DWELL_SIGNAL', 'HEADING_ENTERED', 'VISION_HOVER_SIGNAL'].includes(message.type)) {
+        chrome.runtime.sendMessage({
+            type: `PROACTIVE_${message.type}`,
+            payload: message.payload
+        }).catch(() => { });
+    }
+
     if (message.type === 'CHIP_CLICK' && message.payload.action === 'SUMMARIZE') {
         const { text, msgId } = message.payload;
         const tabId = sender.tab.id;
@@ -172,12 +179,9 @@ async function handleGroqTranscription({ base64Audio, apiKey, filename = 'speech
     try {
         await whisperLimiter.recordRequest();
 
-        const binaryString = atob(base64Audio);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        const blob = new Blob([bytes], { type: 'audio/webm' });
+        // More robust conversion using Fetch and Data URI
+        const res = await fetch(`data:audio/webm;base64,${base64Audio}`);
+        const blob = await res.blob();
         const file = new File([blob], filename, { type: 'audio/webm' });
 
         const formData = new FormData();
@@ -262,14 +266,15 @@ async function handleGroqRequest({ question, context, apiKey, tone, history }) {
     const systemPrompt = `You are ConteXia, a chill, knowledgeable friend.
 Tone: ${tone || 'Casual'}.
 CRITICAL IMMERSION RULES:
-1. NEVER mention technical terms like "screenshot," "capture," "image," "file," "PDF," or "this page."
-2. Talk as if you are looking over the user's shoulder at their screen.
-3. Refer to visual input as "what I'm seeing," "your notes," "your annotations," or directly by the content.
+1. NEVER mention technical terms like "screenshot," "capture," "image," "file," "PDF," or "this page" as technical objects.
+2. Talk as if you are looking over the user's shoulder. Use context-aware terms:
+   - For PDFs/Research: Refer to "this document," "this paper," or "these findings."
+   - For Blogs/News: Refer to "this article," "this post," or "this story."
+   - For General Sites: Refer to "this page," "this site," or "what you're reading."
+3. Refer to visual input naturally: "what I'm seeing," "those diagrams," "this layout," or "these annotations."
 4. If this is a follow-up, just reply naturally like a friend in a DM.
 5. Be causal, warm, and conversational.
-6. Adapt your length to the request.
-7. Prioritize a comprehensive breakdown for "explain" requests.
-8. No disclaimers, no robotic greetings, no "As an AI."`;
+6. No disclaimers, no robotic greetings, no "As an AI."`;
 
     let messages = [{ role: 'system', content: systemPrompt }];
 
