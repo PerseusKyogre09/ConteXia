@@ -18,6 +18,7 @@
         cartesiaKey,
         cartesiaVoiceId,
         ttsEngine,
+        preferVoice,
     } from "../store";
     import { fly, fade } from "svelte/transition";
 
@@ -153,6 +154,34 @@
                     </button>
                 {/each}
             </div>
+
+            <!-- Prefer Voice Toggle -->
+            <button
+                on:click={() => preferVoice.update((v) => !v)}
+                class="w-full mt-2 p-3 flex items-center justify-between border rounded-sm transition-all {$preferVoice
+                    ? 'bg-accent/10 border-accent text-accent shadow-glow-green/20'
+                    : 'bg-surface/10 border-border/20 text-muted/60'}"
+            >
+                <div class="flex flex-col items-start gap-0.5">
+                    <span class="text-[10px] font-bold uppercase tracking-wider"
+                        >Prefer Voice</span
+                    >
+                    <span class="text-[8px] opacity-60 font-medium"
+                        >AI always reads messages aloud</span
+                    >
+                </div>
+                <div
+                    class="w-8 h-4 rounded-full relative transition-colors {$preferVoice
+                        ? 'bg-accent'
+                        : 'bg-muted/40'}"
+                >
+                    <div
+                        class="absolute top-1 w-2 h-2 rounded-full bg-white transition-all {$preferVoice
+                            ? 'left-5'
+                            : 'left-1'}"
+                    ></div>
+                </div>
+            </button>
         </section>
 
         <section class="space-y-4">

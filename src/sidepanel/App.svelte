@@ -1,6 +1,13 @@
 <script>
   import { onMount } from "svelte";
-  import { messages, isLoading, apiKey, showSettings } from "./store";
+  import {
+    messages,
+    isLoading,
+    apiKey,
+    showSettings,
+    tone,
+    preferVoice,
+  } from "./store";
   import Header from "./components/Header.svelte";
   import ChatList from "./components/ChatList.svelte";
   import InputArea from "./components/InputArea.svelte";
@@ -98,6 +105,7 @@
         payload: {
           question: text,
           apiKey: $apiKey,
+          tone: $tone,
           history: $messages.slice(-6),
         },
       });
@@ -108,7 +116,7 @@
 
       if (isLiveMode && liveModeRef) {
         liveModeRef.speak(answer);
-      } else if (autoSpeak) {
+      } else if (autoSpeak || $preferVoice) {
         stopAllAudio();
         speakWithCartesia(answer);
       }

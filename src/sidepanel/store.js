@@ -27,6 +27,7 @@ export const currentCartesiaKey = derived(
 );
 
 export const tone = writable('Casual');
+export const preferVoice = writable(false);
 export const showSettings = writable(false);
 
 
@@ -41,6 +42,7 @@ chrome.storage.local.get(['groq_api_key', 'contexia_tone', 'use_custom_key', 'cu
     if (data.contexia_tone) tone.set(data.contexia_tone);
     if (data.cartesia_key) cartesiaKey.set(data.cartesia_key);
     if (data.cartesia_voice_id) cartesiaVoiceId.set(data.cartesia_voice_id);
+    if (data.contexia_prefer_voice !== undefined) preferVoice.set(data.contexia_prefer_voice);
 });
 
 chrome.storage.session.get(['contexia_messages']).then(data => {
@@ -58,6 +60,7 @@ messages.subscribe(v => initialized && chrome.storage.session.set({ contexia_mes
 cartesiaKey.subscribe(v => initialized && chrome.storage.local.set({ cartesia_key: v }));
 cartesiaVoiceId.subscribe(v => initialized && chrome.storage.local.set({ cartesia_voice_id: v }));
 ttsEngine.subscribe(v => initialized && chrome.storage.local.set({ contexia_tts_engine: v }));
+preferVoice.subscribe(v => initialized && chrome.storage.local.set({ contexia_prefer_voice: v }));
 
 export function addMessage(role, content) {
     messages.update(m => [...m, { role, content, timestamp: Date.now() }]);
