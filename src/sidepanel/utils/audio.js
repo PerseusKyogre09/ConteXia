@@ -1,5 +1,5 @@
 import { get, writable } from 'svelte/store';
-import { currentCartesiaKey, cartesiaVoiceId } from '../store';
+import { currentCartesiaKey, cartesiaVoiceId, ttsEngine, apiKey as groqApiKey } from '../store';
 
 export const audioVolume = writable(0);
 
@@ -80,23 +80,61 @@ export function stopMicVolume() {
 }
 
 export async function speakWithCartesia(text) {
-    const apiKey = get(currentCartesiaKey);
-    const voiceId = get(cartesiaVoiceId);
+    const engine = get(ttsEngine);
     const sanitized = sanitizeForTTS(text);
 
-    if (!apiKey) {
+    if (engine === 'browser') {
         return fallbackSpeak(sanitized);
+    }
+
+    const cartesiaKey = get(currentCartesiaKey);
+    const voiceId = get(cartesiaVoiceId);
+
+    if (cartesiaKey) {
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: 'CARTESIA_TTS',
+                payload: { transcript: sanitized, voiceId, apiKey: cartesiaKey }
+            });
+
+            if (response && !response.error) {
+                const binaryString = atob(response.data);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                const ctx = await getAudioCtx();
+                const audioBuffer = await ctx.decodeAudioData(bytes.buffer);
+                await playAudioBuffer(audioBuffer);
+                return;
+            }
+            console.warn("Cartesia failed:", response?.error);
+        } catch (error) {
+            console.error("Cartesia communication error:", error);
+        }
+    }
+
+    // Fallback to Groq
+    return speakWithGroq(sanitized);
+}
+
+export async function speakWithGroq(text) {
+    const apiKey = get(groqApiKey);
+    if (!apiKey) {
+        return fallbackSpeak(text);
     }
 
     try {
         const response = await chrome.runtime.sendMessage({
-            type: 'CARTESIA_TTS',
-            payload: { transcript: sanitized, voiceId, apiKey }
+            type: 'GROQ_TTS',
+            payload: { transcript: text, apiKey }
         });
 
         if (!response || response.error) {
-            throw new Error(response?.error || "Background fetch failed");
+            throw new Error(response?.error || "Groq fetch failed");
         }
+
         const binaryString = atob(response.data);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
@@ -105,10 +143,9 @@ export async function speakWithCartesia(text) {
 
         const ctx = await getAudioCtx();
         const audioBuffer = await ctx.decodeAudioData(bytes.buffer);
-
         await playAudioBuffer(audioBuffer);
     } catch (error) {
-        console.error("Cartesia proxy failed, falling back:", error);
+        console.error("Groq fallback failed, final fallback to Browser:", error);
         return fallbackSpeak(text);
     }
 }

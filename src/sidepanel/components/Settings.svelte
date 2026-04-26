@@ -17,6 +17,7 @@
         customApiKey,
         cartesiaKey,
         cartesiaVoiceId,
+        ttsEngine,
     } from "../store";
     import { fly, fade } from "svelte/transition";
 
@@ -198,6 +199,39 @@
             >
                 Activate Microphone
             </button>
+        </section>
+
+        <section class="space-y-4">
+            <div class="flex items-center gap-2 text-highlight/80">
+                <SettingsIcon size={14} />
+                <h2 class="text-[10px] font-black uppercase tracking-widest">
+                    TTS Protocol
+                </h2>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <button
+                    on:click={() => ttsEngine.set("api")}
+                    class="p-3 text-[10px] font-bold border rounded-sm transition-all {$ttsEngine ===
+                    'api'
+                        ? 'bg-accent/10 border-accent text-accent'
+                        : 'bg-surface/10 border-border/20 text-muted opacity-60'}"
+                >
+                    Premium (API)
+                </button>
+                <button
+                    on:click={() => ttsEngine.set("browser")}
+                    class="p-3 text-[10px] font-bold border rounded-sm transition-all {$ttsEngine ===
+                    'browser'
+                        ? 'bg-accent/10 border-accent text-accent'
+                        : 'bg-surface/10 border-border/20 text-muted opacity-60'}"
+                >
+                    Token Saver
+                </button>
+            </div>
+            <p class="text-[9px] text-muted italic px-1">
+                API uses Cartesia (fallback to Groq). Token Saver uses your
+                browser's native voice.
+            </p>
         </section>
 
         <section class="pt-6 border-t border-border/20 space-y-4">

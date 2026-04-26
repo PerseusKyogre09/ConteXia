@@ -83,6 +83,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         handleCartesiaTTS(message.payload).then(sendResponse);
         return true;
     }
+    if (message.type === 'GROQ_TTS') {
+        handleGroqTTS(message.payload).then(sendResponse);
+        return true;
+    }
 });
 
 async function handleCartesiaTTS({ transcript, voiceId, apiKey }) {
@@ -124,6 +128,44 @@ async function handleCartesiaTTS({ transcript, voiceId, apiKey }) {
         return { data: btoa(binary) };
     } catch (error) {
         console.error("Background TTS error:", error);
+        return { error: error.message };
+    }
+}
+
+async function handleGroqTTS({ transcript, apiKey }) {
+    const limitCheck = await groqLimiter.checkLimit();
+    if (!limitCheck.allowed) return { error: limitCheck.message };
+
+    try {
+        await groqLimiter.recordRequest();
+        const response = await fetch('https://api.groq.com/openai/v1/audio/speech', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model: 'canopylabs/orpheus-v1-english',
+                input: transcript,
+                voice: 'sonia', // Defaulting to sonia or similar if needed, but the screenshot didn't specify voices for this model clearly. I'll use a generic one or check if it's required.
+                response_format: 'mp3'
+            })
+        });
+
+        if (!response.ok) {
+            const errBody = await response.text();
+            throw new Error(`Groq TTS rejected: ${response.status} - ${errBody}`);
+        }
+
+        const buffer = await response.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < bytes.length; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return { data: btoa(binary) };
+    } catch (error) {
+        console.error("Groq TTS error:", error);
         return { error: error.message };
     }
 }

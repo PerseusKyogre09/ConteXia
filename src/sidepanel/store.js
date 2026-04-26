@@ -5,6 +5,7 @@ export const messages = writable([]);
 export const isListening = writable(false);
 export const isSpeaking = writable(false);
 export const isLoading = writable(false);
+export const ttsEngine = writable('api'); // 'api' or 'browser'
 
 const INITIAL_BUILTIN = import.meta.env.VITE_GROQ_API_KEY || '';
 const INITIAL_CARTESIA = import.meta.env.VITE_CARTESIA_API_KEY || '';
@@ -29,9 +30,10 @@ export const tone = writable('Casual');
 export const showSettings = writable(false);
 
 
-chrome.storage.local.get(['groq_api_key', 'contexia_tone', 'use_custom_key', 'custom_api_key', 'cartesia_key', 'cartesia_voice_id']).then(data => {
+chrome.storage.local.get(['groq_api_key', 'contexia_tone', 'use_custom_key', 'custom_api_key', 'cartesia_key', 'cartesia_voice_id', 'contexia_tts_engine']).then(data => {
     if (data.use_custom_key !== undefined) useCustomKey.set(data.use_custom_key);
     if (data.custom_api_key) customApiKey.set(data.custom_api_key);
+    if (data.contexia_tts_engine) ttsEngine.set(data.contexia_tts_engine);
     else if (data.groq_api_key) {
         customApiKey.set(data.groq_api_key);
         useCustomKey.set(true);
@@ -55,6 +57,7 @@ tone.subscribe(v => initialized && chrome.storage.local.set({ contexia_tone: v }
 messages.subscribe(v => initialized && chrome.storage.session.set({ contexia_messages: v }));
 cartesiaKey.subscribe(v => initialized && chrome.storage.local.set({ cartesia_key: v }));
 cartesiaVoiceId.subscribe(v => initialized && chrome.storage.local.set({ cartesia_voice_id: v }));
+ttsEngine.subscribe(v => initialized && chrome.storage.local.set({ contexia_tts_engine: v }));
 
 export function addMessage(role, content) {
     messages.update(m => [...m, { role, content, timestamp: Date.now() }]);
