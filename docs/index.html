@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConteXia — Your AI Context Companion</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+</head>
+
+<body>
+    <div class="grain"></div>
+
+    <header class="navbar">
+        <div class="container">
+            <div class="logo">
+                <span class="logo-text">ConteXia</span>
+            </div>
+            <nav class="nav-links">
+                <a href="#features">Features</a>
+                <a href="#install" class="btn-primary">Get Extension</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="container">
+                <div class="hero-content">
+                    <h1 class="reveal">Browse like you've <span class="accent">actually</span> read it.</h1>
+                    <p class="reveal">ConteXia is a minimal, ultra-low latency context companion. Deep dives,
+                        human-grade narration, and visual intelligence—all without the fluff.</p>
+                    <div class="cta-group reveal">
+                        <a href="#install" class="btn-main">Get the Extension</a>
+                        <span class="version">v1.0.0 — Open Source</span>
+                    </div>
+                </div>
+                <div class="hero-image reveal">
+                    <div class="preview-card">
+                        <img src="preview.png" alt="ConteXia Preview">
+                        <div class="preview-overlay"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="features" class="features">
+            <div class="container">
+                <div class="section-header">
+                    <h2 class="reveal">Built for Deep Reading.</h2>
+                </div>
+                <div class="feature-grid">
+                    <div class="feature-card reveal">
+                        <div class="icon"><i class="fa-solid fa-brain"></i></div>
+                        <h3>Deep Focus</h3>
+                        <p>Ditch the summary. Get a comprehensive, context-aware breakdown of any text or selection.</p>
+                    </div>
+                    <div class="feature-card reveal">
+                        <div class="icon"><i class="fa-solid fa-volume-high"></i></div>
+                        <h3>Pure Audio</h3>
+                        <p>Ultra-low latency narration that feels human. Listen to the web while you stay in flow.</p>
+                    </div>
+                    <div class="feature-card reveal">
+                        <div class="icon"><i class="fa-solid fa-eye"></i></div>
+                        <h3>Visual Brain</h3>
+                        <p>Analyze charts, PDFs, and complex diagrams instantly. If you can see it, ConteXia can explain
+                            it.</p>
+                    </div>
+                    <div class="feature-card reveal">
+                        <div class="icon"><i class="fa-solid fa-pen-fancy"></i></div>
+                        <h3>Ink Mind</h3>
+                        <p>A boutique handwriting engine for digital thoughts. Annotate the web like actual stationery.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="install" class="install">
+            <div class="container">
+                <div class="install-card reveal">
+                    <h2>Install in 60 Seconds</h2>
+                    <p>ConteXia is currently in developer beta. Follow these simple steps to get started:</p>
+                    <ol class="steps">
+                        <li>Download the latest release ZIP from GitHub.</li>
+                        <li>Extract it to a folder on your computer.</li>
+                        <li>Open <span class="code">chrome://extensions</span> in your browser.</li>
+                        <li>Enable <strong>Developer Mode</strong> at the top right.</li>
+                        <li>Click <strong>Load Unpacked</strong> and select the <strong>ConteXia</strong> folder (the
+                            one containing manifest.json).
+                        </li>
+                    </ol>
+                    <a href="https://github.com/PerseusKyogre09/ConteXia/archive/refs/heads/main.zip"
+                        class="btn-download">Download ZIP Archive</a>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 ConteXia</p>
+        </div>
+    </footer>
+
+    <script src="main.js"></script>
+</body>
+
+</html>
