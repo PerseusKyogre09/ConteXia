@@ -1,7 +1,23 @@
 <script>
     import { createEventDispatcher, onMount } from "svelte";
-    import { Send, Mic, Headphones, PenLine } from "lucide-svelte";
-    import { isListening, isLoading, addMessage } from "../store";
+    import {
+        Send,
+        Mic,
+        Headphones,
+        PenLine,
+        Sparkles,
+        BookOpen,
+        Volume2,
+        Square,
+    } from "lucide-svelte";
+    import {
+        isListening,
+        isLoading,
+        addMessage,
+        messages,
+        isSpeaking,
+    } from "../store";
+    import { speakWithCartesia, stopAllAudio } from "../utils/audio";
 
     const dispatch = createEventDispatcher();
     let text = "";
@@ -20,7 +36,6 @@
         });
         if (!tab?.id) return;
 
-        // Local File Permission Guard
         if (tab.url?.startsWith("file://")) {
             const isAllowed =
                 await chrome.extension.isAllowedFileSchemeAccess();
@@ -94,9 +109,14 @@
     });
 
     function toggleVoice() {
+        if ($isSpeaking) {
+            stopAllAudio();
+            return;
+        }
+
         if (!recognition) {
             addMessage(
-                "ai",
+                "assistant",
                 "I'm sorry, but your browser doesn't seem to support speech recognition. We can still chat via text though!",
             );
             return;
@@ -112,12 +132,37 @@
             } catch (e) {
                 console.error("Failed to start speech:", e);
                 isListening.set(false);
-                // AI Feedback for permission
                 addMessage(
-                    "ai",
+                    "assistant",
                     "I'd love to listen, but I don't have permission to use your microphone yet. Please enable it in your browser settings so we can talk!",
                 );
             }
+        }
+    }
+
+    function handleSummarize() {
+        text = "Summarize this page for me please.";
+        submit();
+    }
+
+    function handleExplain() {
+        text =
+            "Explain everything on this page in detail, breaking it down in easy language.";
+        submit();
+    }
+
+    function handleReadAloud() {
+        const lastAiMsg = [...$messages]
+            .reverse()
+            .find((m) => m.role === "assistant");
+        if (lastAiMsg) {
+            stopAllAudio();
+            speakWithCartesia(lastAiMsg.content);
+        } else {
+            dispatch("submit", {
+                text: "Tell me briefly what this page is about and read it aloud.",
+                autoSpeak: true,
+            });
         }
     }
 </script>
@@ -125,7 +170,52 @@
 <div
     class="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background to-transparent pt-10 pointer-events-none"
 >
-    <div class="relative pointer-events-auto">
+    <div class="relative pointer-events-auto flex flex-col gap-3">
+        <!-- Suggestions Chips -->
+        <div class="flex gap-2 animate-in slide-in-from-bottom-2 duration-500">
+            <button
+                on:click={handleSummarize}
+                class="flex items-center gap-1.5 px-3 py-1.5 bg-surface/40 hover:bg-highlight/10 border border-border/20 hover:border-highlight/30 rounded-full transition-all group"
+            >
+                <Sparkles
+                    size={12}
+                    class="text-highlight group-hover:scale-110 transition-transform"
+                />
+                <span
+                    class="text-[10px] font-bold text-muted group-hover:text-highlight tracking-wide"
+                    >Summarize</span
+                >
+            </button>
+
+            <button
+                on:click={handleExplain}
+                class="flex items-center gap-1.5 px-3 py-1.5 bg-surface/40 hover:bg-highlight/10 border border-border/20 hover:border-highlight/30 rounded-full transition-all group"
+            >
+                <BookOpen
+                    size={12}
+                    class="text-highlight group-hover:scale-110 transition-transform"
+                />
+                <span
+                    class="text-[10px] font-bold text-muted group-hover:text-highlight tracking-wide"
+                    >Explain</span
+                >
+            </button>
+
+            <button
+                on:click={handleReadAloud}
+                class="flex items-center gap-1.5 px-3 py-1.5 bg-surface/40 hover:bg-highlight/10 border border-border/20 hover:border-highlight/30 rounded-full transition-all group"
+            >
+                <Volume2
+                    size={12}
+                    class="text-highlight group-hover:scale-110 transition-transform"
+                />
+                <span
+                    class="text-[10px] font-bold text-muted group-hover:text-highlight tracking-wide"
+                    >Read Aloud</span
+                >
+            </button>
+        </div>
+
         <div
             class="relative flex items-end gap-3 bg-surface/60 backdrop-blur-xl border border-border/40 rounded-sm p-3 transition-all inset-shadow ink-border group focus-within:border-accent/40"
         >
@@ -134,9 +224,15 @@
                     on:click={toggleVoice}
                     class="p-2 rounded bg-background/40 border border-border/40 transition-all {$isListening
                         ? 'text-red-500 animate-pulse shadow-glow-blue'
-                        : 'text-accent'}"
+                        : $isSpeaking
+                          ? 'text-highlight scale-110'
+                          : 'text-accent'}"
                 >
-                    <Mic size={16} />
+                    {#if $isSpeaking}
+                        <Square size={16} />
+                    {:else}
+                        <Mic size={16} />
+                    {/if}
                 </button>
             </div>
 

@@ -1,5 +1,5 @@
 import { get, writable } from 'svelte/store';
-import { currentCartesiaKey, cartesiaVoiceId, ttsEngine, apiKey as groqApiKey } from '../store';
+import { currentCartesiaKey, cartesiaVoiceId, ttsEngine, apiKey as groqApiKey, isSpeaking } from '../store';
 
 export const audioVolume = writable(0);
 
@@ -19,6 +19,7 @@ function sanitizeForTTS(text) {
 }
 
 export function stopAllAudio() {
+    isSpeaking.set(false);
     if (currentSource) {
         try { currentSource.stop(); } catch (e) { }
         currentSource = null;
@@ -154,16 +155,20 @@ function fallbackSpeak(text) {
     return new Promise((resolve) => {
         if (!window.speechSynthesis) return resolve();
         stopAllAudio();
+        isSpeaking.set(true);
         const ut = new SpeechSynthesisUtterance(text);
-        ut.onend = resolve;
-        ut.onerror = resolve;
+        ut.onend = () => {
+            isSpeaking.set(false);
+            resolve();
+        };
+        ut.onerror = () => {
+            isSpeaking.set(false);
+            resolve();
+        };
         window.speechSynthesis.speak(ut);
     });
 }
 
-/**
- * Plays a subtle premium interaction ping.
- */
 export async function playInteractionPing(type = 'chip') {
     const ctx = await getAudioCtx();
     const osc = ctx.createOscillator();
@@ -192,8 +197,10 @@ async function playAudioBuffer(audioBuffer) {
     source.connect(ctx.destination); // Connect speech to speakers explicitly
 
     return new Promise((resolve) => {
+        isSpeaking.set(true);
         source.onended = () => {
             currentSource = null;
+            isSpeaking.set(false);
             resolve();
         };
         currentSource = source;

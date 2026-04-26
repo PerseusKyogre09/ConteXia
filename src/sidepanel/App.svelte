@@ -7,7 +7,11 @@
   import ApiKeyConfig from "./components/ApiKeyConfig.svelte";
   import LiveMode from "./components/LiveMode.svelte";
   import Settings from "./components/Settings.svelte";
-  import { playInteractionPing } from "./utils/audio";
+  import {
+    playInteractionPing,
+    speakWithCartesia,
+    stopAllAudio,
+  } from "./utils/audio";
 
   let initialized = false;
   let isLiveMode = false;
@@ -16,10 +20,7 @@
   let processedMsgIds = new Set();
 
   onMount(async () => {
-    const stored = await chrome.storage.local.get([
-      "messages",
-      "onboarding_seen",
-    ]);
+    const stored = await chrome.storage.local.get(["onboarding_seen"]);
     const detailedPrompt = (text) =>
       text === "Visual Analysis of Section"
         ? "Can you give me a deep dive into this section?"
@@ -59,7 +60,7 @@
     );
   });
 
-  async function handleQuestion(text) {
+  async function handleQuestion(text, autoSpeak = false) {
     if (!text.trim()) return;
 
     messages.update((m) => [...m, { role: "user", content: text }]);
@@ -81,12 +82,15 @@
 
       if (isLiveMode && liveModeRef) {
         liveModeRef.speak(answer);
+      } else if (autoSpeak) {
+        stopAllAudio();
+        speakWithCartesia(answer);
       }
     } catch (e) {
       messages.update((m) => [
         ...m,
         {
-          role: "ai",
+          role: "assistant",
           content:
             "I'm having a little trouble connecting. Could you check your key or connection?",
         },
@@ -110,7 +114,8 @@
     <Header />
     <ChatList on:submit={(e) => handleQuestion(e.detail)} />
     <InputArea
-      on:submit={(e) => handleQuestion(e.detail)}
+      on:submit={(e) =>
+        handleQuestion(e.detail.text || e.detail, e.detail.autoSpeak)}
       on:openLive={() => (isLiveMode = true)}
     />
   {/if}

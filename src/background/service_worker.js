@@ -147,7 +147,7 @@ async function handleGroqTTS({ transcript, apiKey }) {
             body: JSON.stringify({
                 model: 'canopylabs/orpheus-v1-english',
                 input: transcript,
-                voice: 'sonia', // Defaulting to sonia or similar if needed, but the screenshot didn't specify voices for this model clearly. I'll use a generic one or check if it's required.
+                voice: 'sonia',
                 response_format: 'mp3'
             })
         });
