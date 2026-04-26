@@ -7,24 +7,25 @@
 
 ---
 
-## 🧠 Intelligence & Features
+## 🧠 Intelligence & Deep Features
 
-ConteXia doesn't just "see" the page; she follows your flow.
+ConteXia is a multi-modal context engine disguised as a nature-themed sidepanel.
 
-- **Deep Focus**: Ditch the one-paragraph summary. Get a comprehensive, context-aware breakdown of any text or selection.
-- **Pure Audio**: Ultra-low latency narration powered by **Cartesia**. Listen to the web with voices that actually sound human.
-- **Visual Brain**: Analyze charts, PDFs, and complex diagrams instantly. If you can see it, ConteXia can explain it.
-- **Ink Mind**: A boutique handwriting engine for digital thoughts. Annotate the web with silky-smooth Bézier curves like actual stationery.
-- **Prefer Voice**: A dedicated hands-free mode. Enable this to have every AI response narrated automatically.
+-   **Vision Mapping (Spatial Scan)**: Bypasses traditional text scrapers using dynamic viewport capture (via `chrome.tabs.captureVisibleTab`). Understands layouts, diagrams, and OCRs non-selectable content in real-time.
+-   **Tree Log Interface**: A reactive physics UI using **9-slice bark textures** and Svelte transitions. The input interface scales vertically with your thoughts, providing a physical, textured feel to digital dialogue.
+-   **Presence (Liquid Audio)**: An ultra-low latency STT/TTS pipeline (Groq + Cartesia) with frequency-reactive gooey blob physics. Implements **barge-in** logic, allowing users to interrupt the AI for natural, human-like turn-taking.
+-   **Boutique Annotation Ink**: A Shadow DOM-isolated canvas layer for SILKY smooth digital ink. Uses quadratic curve interpolation for a high-fidelity "stationery" feel that persists across page refreshes.
+-   **Dwell Intelligence**: Silent background "Reading Sentinel" that monitors focus patterns and scroll density to offer proactive help exactly when you encounter complex sections.
+-   **Production Hardening**: Persistent rate limiting (10 RPM Groq, 20 RPM Cartesia) and secure key management, ensuring reliability for multi-user demonstrations.
 
 ---
 
 ## 🛠️ The Stack
 
-- **Frontend**: Svelte (Vite) + Tailwind CSS v4
-- **Reasoning**: **Groq** (Llama 3.3 70B & Vision models)
-- **Voice**: **Cartesia Sonic-3** (Premium TTS)
-- **Motion**: GSAP for fluid, stationery-inspired transitions.
+-   **Frontend**: Svelte (Vite) + Tailwind CSS v4
+-   **Reasoning**: **Groq** (Llama 3.3 70B & Vision models)
+-   **Voice**: **Cartesia Sonic-3** (Premium TTS)
+-   **Motion**: GSAP for fluid, stationery-inspired transitions.
 
 ---
 

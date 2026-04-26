@@ -38,7 +38,7 @@
 
 <div
     bind:this={container}
-    class="flex-1 overflow-y-auto p-5 pb-40 scrollbar-hide bg-background"
+    class="flex-1 overflow-y-auto p-5 pb-40 scrollbar-hide bg-transparent"
 >
     {#if $messages.length === 0}
         <Landing on:submit />

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detailed Features — ConteXia</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+</head>
+
+<body class="features-page">
+    <div class="grain"></div>
+
+    <header class="navbar">
+        <div class="container">
+            <div class="logo">
+                <a href="index.html" class="logo-text">ConteXia</a>
+            </div>
+            <nav class="nav-links">
+                <a href="index.html">Home</a>
+                <a href="index.html#install" class="btn-primary">Get Extension</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container py-20">
+        <section class="features-hero mb-20 text-center">
+            <h1 class="reveal mb-4">The Science of <span class="accent">Context</span>.</h1>
+            <p class="reveal max-w-2xl mx-auto">ConteXia is a high-latency, multi-modal context engine disguised as a
+                nature-themed sidepanel. Here is a technical deep-dive into its core systems.</p>
+        </section>
+
+        <div class="detailed-features">
+            <!-- 1. Vision Mapping -->
+            <div class="feature-detail-card reveal">
+                <div class="feature-icon-large"><i class="fa-solid fa-eye"></i></div>
+                <div class="feature-info">
+                    <h2>Vision Mapping & Spatial Reasoning</h2>
+                    <p>Unlike standard text scrapers, ConteXia uses dynamic viewport capture to ingest "Visual Context".
+                        This allows it to understand layouts, diagrams, and non-selectable text within the user's active
+                        screen.</p>
+                    <div class="how-it-works">
+                        <h3>How it works:</h3>
+                        <ul>
+                            <li><strong>Dynamic Viewport Ingestion</strong> Captures the active tab's layout using
+                                <code>chrome.tabs.captureVisibleTab</code> when 3D vision is triggered.</li>
+                            <li><strong>Spatial Metadata</strong> Ingests DOM coordinate data for hover triggers,
+                                allowing the AI to know exactly what the user is looking at.</li>
+                            <li><strong>OCR & PDF Depth</strong> Bypasses traditional PDF security by reading the visual
+                                rendered layer, ensuring 100% data access.</li>
+                        </ul>
+                    </div>
+                    <ul class="feature-specs">
+                        <li>Real-time capture</li>
+                        <li>DOM Spatial Awareness</li>
+                        <li>PDF Layer Bypass</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 2. Tree Log Interface -->
+            <div class="feature-detail-card reveal">
+                <div class="feature-icon-large"><i class="fa-solid fa-tree"></i></div>
+                <div class="feature-info">
+                    <h2>Tree Log: Reactive Physics Interface</h2>
+                    <p>The Tree Log UI is a exercise in boutique frontend engineering, combining 9-slice tiling with
+                        reactive flexbox logic to create a container that feels physical and weighted.</p>
+                    <div class="how-it-works">
+                        <h3>How it works:</h3>
+                        <ul>
+                            <li><strong>9-Slice Bark Texture</strong> Uses a custom-engineered <code>border-image</code>
+                                slice to scale the bark texture without pixel stretching, regardless of sidebar width.
+                            </li>
+                            <li><strong>Vertical Elasticity</strong> The input box uses Svelte reactive bindings to
+                                auto-grow up to a 4-line threshold before enabling a custom-styled
+                                <code>scrollbar-wood</code>.</li>
+                            <li><strong>Micro-interaction Engine</strong> Icons and tools shift dynamically to the
+                                corners of the "carved plank" to maximize typing real-estate.</li>
+                        </ul>
+                    </div>
+                    <ul class="feature-specs">
+                        <li>Elastic Input Height</li>
+                        <li>9-Slice Non-distort Scaling</li>
+                        <li>Wood-textured Scrolling</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 3. Presence Mode -->
+            <div class="feature-detail-card reveal">
+                <div class="feature-icon-large"><i class="fa-solid fa-microphone-lines"></i></div>
+                <div class="feature-info">
+                    <h2>Presence: Ethereal Audio Dialogue</h2>
+                    <p>Presence mode transforms the assistant into a persistent, hands-free presence. It leverages a
+                        high-speed STT/TTS pipeline for ultra-low latency human-grade conversation.</p>
+                    <div class="how-it-works">
+                        <h3>How it works:</h3>
+                        <ul>
+                            <li><strong>Gooey Blob Physics</strong> Uses SVG filters and GSAP to animate "liquid" blobs
+                                that respond to real-time <code>AudioContext</code> frequency data.</li>
+                            <li><strong>Interruptible Pipeline</strong> Implements a "barge-in" mechanism where incoming
+                                mic activity immediately halts current TTS playback to permit natural turn-taking.</li>
+                            <li><strong>Latency Triage</strong> Distributes workloads between Groq (STT/LLM) and
+                                Cartesia (TTS) to maintain a response latency sub-500ms.</li>
+                        </ul>
+                    </div>
+                    <ul class="feature-specs">
+                        <li>Sub-500ms Audio Latency</li>
+                        <li>Interruptible TTS Playback</li>
+                        <li>Frequency-Reactive Physics</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 4. Annotation Ink -->
+            <div class="feature-detail-card reveal">
+                <div class="feature-icon-large"><i class="fa-solid fa-pen-nib"></i></div>
+                <div class="feature-info">
+                    <h2>Boutique Annotation Ink</h2>
+                    <p>The Annotation Overlay is a specialized canvas layer that injects directly into the host page,
+                        allowing for persistent, non-destructive thought mapping.</p>
+                    <div class="how-it-works">
+                        <h3>How it works:</h3>
+                        <ul>
+                            <li><strong>Shadow DOM Isolation</strong> Injects the canvas into a Shadow Root to prevent
+                                host page CSS from leaking into the drawing engine.</li>
+                            <li><strong>Ink Physics</strong> Uses quadratic curve interpolation to smooth out rapid
+                                mouse movements into elegant "stationery" strokes.</li>
+                            <li><strong>State Persistence</strong> Annotations are serialized and hashed to the site
+                                URL, ensuring they remain visible when you revisit a page (via
+                                <code>chrome.storage</code>).</li>
+                        </ul>
+                    </div>
+                    <ul class="feature-specs">
+                        <li>Quadratic Stroke Smoothing</li>
+                        <li>Shadow DOM Protection</li>
+                        <li>URL-Persistent State</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 5. Dwell Intelligence -->
+            <div class="feature-detail-card reveal">
+                <div class="feature-icon-large"><i class="fa-solid fa-brain"></i></div>
+                <div class="feature-info">
+                    <h2>Dwell Intelligence (Proactive Assistance)</h2>
+                    <p>ConteXia implements a silent "Reading Sentinel" that monitors the balance between content density
+                        and user engagement to offer help exactly when needed.</p>
+                    <div class="how-it-works">
+                        <h3>How it works:</h3>
+                        <ul>
+                            <li><strong>Focus Tracking</strong> Monitors <code>scroll</code> and <code>mouseover</code>
+                                dwell-time on specific paragraphs.</li>
+                            <li><strong>Density Thresholding</strong> Triggers a "Smart Hint" chime when a high-density
+                                text section results in a dwell-time outlier (>2x average).</li>
+                            <li><strong>Invisible Ingestion</strong> Prefetches context in small chunks to ensure
+                                immediate summarization if the user eventually selects the text.</li>
+                        </ul>
+                    </div>
+                    <ul class="feature-specs">
+                        <li>Dwell-time Anomaly Detection</li>
+                        <li>Proactive Audio Chimes</li>
+                        <li>Context Prefetching</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 6. Rate Limiting & Safety -->
+            <div class="feature-detail-card reveal">
+                <div class="feature-icon-large"><i class="fa-solid fa-shield-halved"></i></div>
+                <div class="feature-info">
+                    <h2>Production-Grade Safety & Reliability</h2>
+                    <p>ConteXia is built for reliability. It includes robust back-end safeguards to prevent abuse and
+                        ensure high availability in production-like environments.</p>
+                    <div class="how-it-works">
+                        <h3>How it works:</h3>
+                        <ul>
+                            <li><strong>Token-Aware Rate Limiting</strong> Implements a persistent rate limiter in
+                                <code>chrome.storage.local</code> to enforce RPM quotas (10 RPM for LLMs, 20 RPM for
+                                TTS).</li>
+                            <li><strong>Fallback Triage</strong> Automatically switches between Gemini and Groq
+                                depending on quota availability and response health.</li>
+                            <li><strong>Secure Key Management</strong> All API keys are encrypted at rest and never
+                                shared across instances.</li>
+                        </ul>
+                    </div>
+                    <ul class="feature-specs">
+                        <li>Persistent Rate Limiting</li>
+                        <li>Multi-Model Fallbacks</li>
+                        <li>End-to-End Asset Cleanup</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <section class="final-cta text-center mt-20">
+            <h2 class="reveal mb-6">Built for the Hackathon judges.</h2>
+            <p class="reveal mb-8 opacity-60">ConteXia represents a leap in low-latency, context-aware browser
+                extensions.</p>
+            <a href="index.html#install" class="btn-main">View Repository / Get ZIP</a>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container py-10 border-t border-white/10 mt-20">
+            <p>&copy; 2026 ConteXia — Hackathon Submission Details</p>
+        </div>
+    </footer>
+
+    <script src="main.js"></script>
+</body>
+
+</html>

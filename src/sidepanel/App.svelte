@@ -22,6 +22,7 @@
     speak,
     stopAllAudio,
   } from "./utils/audio";
+  import forestBg from "../assets/forest.png";
 
   let initialized = false;
   let isLiveMode = false;
@@ -226,6 +227,11 @@
     class="fixed inset-0 pointer-events-none opacity-[0.03] bg-[url('https://grainy-gradients.vercel.app/noise.svg')] z-50"
   ></div>
 
+  <div
+    class="forest-bg fixed inset-0 pointer-events-none z-0 opacity-20"
+    style="--forest-url: url({forestBg})"
+  ></div>
+
   {#if !initialized}
     <ApiKeyConfig on:save={() => (initialized = true)} />
   {:else}
@@ -252,3 +258,12 @@
     <Settings />
   {/if}
 </main>
+
+<style>
+  .forest-bg {
+    background-image: var(--forest-url);
+    background-size: auto 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+</style>

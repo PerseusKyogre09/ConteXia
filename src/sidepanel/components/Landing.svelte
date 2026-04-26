@@ -31,7 +31,7 @@
         });
 
         const isAllowed = await chrome.extension.isAllowedFileSchemeAccess();
-        // Check mic permission - this is a rough check
+        // Mic permission check
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: true,

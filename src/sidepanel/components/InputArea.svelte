@@ -24,6 +24,7 @@
     import { speak, stopAllAudio } from "../utils/audio";
     import { AudioRecorder } from "../utils/recorder";
     import { fade, slide, fly } from "svelte/transition";
+    import logChat from "../../assets/log-chat.svg";
 
     const dispatch = createEventDispatcher();
     let text = "";
@@ -229,11 +230,11 @@
 </script>
 
 <div
-    class="fixed bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-background to-transparent pt-10 pointer-events-none"
+    class="fixed bottom-0 left-0 right-0 px-0 pb-4 bg-gradient-to-t from-background to-transparent pt-10 pointer-events-none"
 >
-    <div class="relative pointer-events-auto flex flex-col gap-3">
+    <div class="relative pointer-events-auto flex flex-col gap-0.5">
         <div
-            class="flex gap-2 animate-in slide-in-from-bottom-2 duration-500 relative"
+            class="flex gap-2 animate-in slide-in-from-bottom-2 duration-500 relative px-4"
         >
             {#if $proactiveHint}
                 <div
@@ -336,7 +337,7 @@
         </div>
 
         <div
-            class="relative flex items-end gap-3 bg-surface/60 backdrop-blur-xl border border-border/40 rounded-sm p-3 transition-all inset-shadow ink-border group focus-within:border-accent/40"
+            class="log-background relative flex items-center transition-all group overflow-hidden min-h-[140px] h-auto px-0 py-[38px]"
         >
             {#if isRecording}
                 <div
@@ -369,61 +370,67 @@
                 </div>
             {/if}
 
-            <div class="flex-shrink-0 pb-1">
+            <div class="flex-shrink-0 z-10">
                 <button
                     on:click={handleMicClick}
-                    class="p-2 rounded bg-background/40 border border-border/40 transition-all {isRecording
+                    class="p-2.5 rounded-lg bg-[#4a3728]/5 border border-[#4a3728]/10 transition-all {isRecording
                         ? 'text-red-500 animate-pulse shadow-glow-blue'
                         : $isSpeaking
-                          ? 'text-highlight scale-110'
-                          : 'text-accent hover:text-highlight'}"
-                    title="Click to Toggle (Spacebar holds to Talk)"
+                          ? 'text-[#5d4037] scale-110'
+                          : 'text-[#5d4037] hover:text-[#4a3728] hover:bg-[#4a3728]/10'}"
+                    title="Voice Interaction"
                 >
                     {#if $isSpeaking && !isRecording}
-                        <Square size={16} />
+                        <Square size={20} />
                     {:else}
-                        <Mic size={16} />
+                        <Mic size={20} />
                     {/if}
                 </button>
             </div>
 
             <div
-                class="flex-1 min-h-[44px] flex items-center bg-surface/20 rounded-md border border-border/20 transition-all focus-within:border-accent/40"
+                class="flex-1 flex items-center bg-transparent transition-all z-10 mx-0 relative min-w-0 max-h-[125px] overflow-hidden"
             >
+                <div
+                    class="invisible text-[15px] font-extrabold leading-relaxed px-2 py-3 whitespace-pre-wrap break-all w-full min-h-[1.5em]"
+                    aria-hidden="true"
+                >
+                    {text || "Write a little note..."}
+                </div>
                 <textarea
                     bind:value={text}
                     placeholder="Write a little note..."
-                    class="w-full bg-transparent px-4 py-3 text-[13px] text-foreground placeholder:text-muted/40 font-medium leading-relaxed resize-none overflow-hidden"
+                    class="w-full bg-transparent px-2 py-3 text-[15px] text-[#3e2723] placeholder:text-[#3e2723]/30 font-extrabold leading-relaxed resize-none outline-none drop-shadow-sm absolute inset-0 h-full break-all overflow-y-auto scrollbar-wood"
                     on:keydown={(e) =>
                         e.key === "Enter" && !e.shiftKey && submit()}
                     rows="1"
                 ></textarea>
             </div>
 
-            <div class="flex items-center gap-2 pb-1">
+            <div class="flex items-center gap-2 z-10">
                 <button
                     on:click={togglePen}
-                    class="p-2 rounded-full {isPenActive
-                        ? 'text-highlight bg-highlight/10'
-                        : 'text-accent hover:text-highlight hover:bg-highlight/5'} transition-all"
-                    title="Annotation Pen"
+                    class="p-2.5 rounded-lg {isPenActive
+                        ? 'text-[#8b4513] bg-[#8b4513]/10'
+                        : 'text-[#5d4037] hover:text-[#4a3728] hover:bg-[#4a3728]/5'} transition-all"
+                    title="Annotate"
                 >
-                    <PenLine size={18} />
+                    <PenLine size={20} />
                 </button>
                 <button
                     on:click={() => dispatch("openLive")}
-                    class="p-2 rounded-full text-accent hover:text-highlight transition-all hover:bg-highlight/5"
-                    title="Live Conversation"
+                    class="p-2.5 rounded-lg text-[#5d4037] hover:text-[#4a3728] transition-all hover:bg-[#4a3728]/5"
+                    title="Live Mode"
                 >
-                    <Headphones size={18} />
+                    <Headphones size={20} />
                 </button>
                 <button
                     on:click={() => submit()}
                     disabled={!text.trim() || $isLoading}
-                    class="p-2 rounded bg-accent border border-accent/20 text-background disabled:opacity-30 disabled:grayscale transition-all shadow-lg hover:shadow-accent/40 group/send"
+                    class="p-2.5 rounded-lg bg-[#5d4037] border border-[#4a3728]/20 text-[#fdf5e6] disabled:opacity-30 disabled:grayscale transition-all shadow-md hover:shadow-[#4a3728]/40 group/send"
                 >
                     <Send
-                        size={16}
+                        size={20}
                         class="group-hover/send:translate-x-0.5 group-hover/send:-translate-y-0.5 transition-transform"
                     />
                 </button>
@@ -434,3 +441,26 @@
         ></div>
     </div>
 </div>
+
+<style>
+    .log-background {
+        border-style: solid;
+        border-width: 38px 45px;
+        border-image-source: url("../../assets/log-chat.svg");
+        border-image-slice: 60 110 60 110 fill;
+        border-image-repeat: stretch;
+        background: transparent;
+        transition: all 0.3s ease;
+    }
+
+    .scrollbar-wood::-webkit-scrollbar {
+        width: 4px;
+    }
+    .scrollbar-wood::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .scrollbar-wood::-webkit-scrollbar-thumb {
+        background: #5d4037;
+        border-radius: 10px;
+    }
+</style>
