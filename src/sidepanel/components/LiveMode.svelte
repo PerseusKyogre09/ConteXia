@@ -4,7 +4,7 @@
     import { fade, fly, scale } from "svelte/transition";
     import { isListening, isLoading, cartesiaVoiceId } from "../store";
     import {
-        speakWithCartesia,
+        speak as speakAudio,
         stopAllAudio,
         audioVolume,
         startMicVolume,
@@ -118,7 +118,7 @@
         isSpeaking = true;
 
         try {
-            await speakWithCartesia(text);
+            await speakAudio(text);
         } catch (e) {
             console.error("Cartesia speak failed:", e);
         } finally {

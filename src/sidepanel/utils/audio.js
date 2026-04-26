@@ -11,10 +11,10 @@ let micSource;
 
 function sanitizeForTTS(text) {
     return text
-        .replace(/[*_#~`]/g, '') // Remove markdown symbols
-        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') // Remove links, keep text
-        .replace(/!\[([^\]]+)\]\([^)]+\)/g, '') // Remove images
-        .replace(/<[^>]*>?/gm, '') // Remove any HTML tags
+        .replace(/[*_#~`]/g, '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/!\[([^\]]+)\]\([^)]+\)/g, '')
+        .replace(/<[^>]*>?/gm, '')
         .trim();
 }
 
@@ -51,7 +51,7 @@ function startVolumeTracking() {
             sum += dataArray[i];
         }
         const average = sum / dataArray.length;
-        audioVolume.set(average / 128); // Normalize to ~0.0 - 1.0 range
+        audioVolume.set(average / 128);
         requestAnimationFrame(update);
     };
     update();
@@ -63,7 +63,7 @@ export async function startMicVolume() {
         const ctx = await getAudioCtx();
         micStream = stream;
         micSource = ctx.createMediaStreamSource(stream);
-        micSource.connect(analyser); // We DON'T connect to ctx.destination (no feedback)
+        micSource.connect(analyser);
     } catch (e) {
         console.error("Mic volume tracking failed:", e);
     }
@@ -80,7 +80,7 @@ export function stopMicVolume() {
     }
 }
 
-export async function speakWithCartesia(text) {
+export async function speak(text) {
     const engine = get(ttsEngine);
     const sanitized = sanitizeForTTS(text);
 
@@ -110,45 +110,37 @@ export async function speakWithCartesia(text) {
                 await playAudioBuffer(audioBuffer);
                 return;
             }
-            console.warn("Cartesia failed:", response?.error);
         } catch (error) {
-            console.error("Cartesia communication error:", error);
+            console.warn("Cartesia failed, falling back to Groq:", error);
         }
     }
 
-    // Fallback to Groq
-    return speakWithGroq(sanitized);
-}
-
-export async function speakWithGroq(text) {
     const apiKey = get(groqApiKey);
-    if (!apiKey) {
-        return fallbackSpeak(text);
+    if (apiKey) {
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: 'GROQ_TTS',
+                payload: { transcript: sanitized, apiKey }
+            });
+
+            if (response && !response.error) {
+                const binaryString = atob(response.data);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+
+                const ctx = await getAudioCtx();
+                const audioBuffer = await ctx.decodeAudioData(bytes.buffer);
+                await playAudioBuffer(audioBuffer);
+                return;
+            }
+        } catch (error) {
+            console.warn("Groq failed, final fallback to Browser:", error);
+        }
     }
 
-    try {
-        const response = await chrome.runtime.sendMessage({
-            type: 'GROQ_TTS',
-            payload: { transcript: text, apiKey }
-        });
-
-        if (!response || response.error) {
-            throw new Error(response?.error || "Groq fetch failed");
-        }
-
-        const binaryString = atob(response.data);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-
-        const ctx = await getAudioCtx();
-        const audioBuffer = await ctx.decodeAudioData(bytes.buffer);
-        await playAudioBuffer(audioBuffer);
-    } catch (error) {
-        console.error("Groq fallback failed, final fallback to Browser:", error);
-        return fallbackSpeak(text);
-    }
+    return fallbackSpeak(sanitized);
 }
 
 function fallbackSpeak(text) {
@@ -156,45 +148,45 @@ function fallbackSpeak(text) {
         if (!window.speechSynthesis) return resolve();
         stopAllAudio();
         isSpeaking.set(true);
-        const ut = new SpeechSynthesisUtterance(text);
-        ut.onend = () => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.onend = () => {
             isSpeaking.set(false);
             resolve();
         };
-        ut.onerror = () => {
+        utterance.onerror = () => {
             isSpeaking.set(false);
             resolve();
         };
-        window.speechSynthesis.speak(ut);
+        window.speechSynthesis.speak(utterance);
     });
 }
 
 export async function playInteractionPing(type = 'chip') {
     const ctx = await getAudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
 
-    osc.connect(gain);
-    gain.connect(ctx.destination);
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
 
     if (type === 'chip' || type === 'focus') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(type === 'chip' ? 880 : 1200, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.3);
-        gain.gain.setValueAtTime(0.04, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(type === 'chip' ? 880 : 1200, ctx.currentTime);
+        oscillator.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.3);
+        gainNode.gain.setValueAtTime(0.04, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
     }
 
-    osc.start();
-    osc.stop(ctx.currentTime + 0.3);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.3);
 }
 
-async function playAudioBuffer(audioBuffer) {
+async function playAudioBuffer(buffer) {
     const ctx = await getAudioCtx();
     const source = ctx.createBufferSource();
-    source.buffer = audioBuffer;
+    source.buffer = buffer;
     source.connect(analyser);
-    source.connect(ctx.destination); // Connect speech to speakers explicitly
+    source.connect(ctx.destination);
 
     return new Promise((resolve) => {
         isSpeaking.set(true);

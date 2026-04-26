@@ -16,18 +16,129 @@
         addMessage,
         messages,
         isSpeaking,
+        apiKey,
     } from "../store";
-    import { speakWithCartesia, stopAllAudio } from "../utils/audio";
+    import { speak, stopAllAudio } from "../utils/audio";
+    import { AudioRecorder } from "../utils/recorder";
 
     const dispatch = createEventDispatcher();
     let text = "";
     let isPenActive = false;
+    let isRecordingWhisper = false;
+    let isProcessingWhisper = false;
+
+    const recorder = new AudioRecorder();
 
     onMount(() => {
         chrome.runtime.onMessage.addListener((msg) => {
             if (msg.type === "PEN_CLOSED") isPenActive = false;
         });
+
+        const handleKeyDown = async (e) => {
+            if (
+                e.code === "Space" &&
+                !isRecordingWhisper &&
+                !isProcessingWhisper
+            ) {
+                const active = document.activeElement;
+                if (
+                    active.tagName !== "TEXTAREA" &&
+                    active.tagName !== "INPUT"
+                ) {
+                    e.preventDefault();
+                    const success = await recorder.start();
+                    if (success) {
+                        isRecordingWhisper = true;
+                    } else {
+                        alert(
+                            "Microphone access failed. Please ensure permissions are granted in settings.",
+                        );
+                    }
+                }
+            }
+        };
+
+        const handleKeyUp = async (e) => {
+            if (e.code === "Space" && isRecordingWhisper) {
+                e.preventDefault();
+                isRecordingWhisper = false;
+                isProcessingWhisper = true;
+
+                const blob = await recorder.stop();
+                if (blob) {
+                    await transcribeAudio(blob);
+                }
+                isProcessingWhisper = false;
+            }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        window.addEventListener("keyup", handleKeyUp);
+
+        return () => {
+            window.removeEventListener("keydown", handleKeyDown);
+            window.removeEventListener("keyup", handleKeyUp);
+            recorder.destroy();
+        };
     });
+
+    async function handleMicClick() {
+        if ($isSpeaking) {
+            stopAllAudio();
+            return;
+        }
+
+        if (isRecordingWhisper) {
+            isRecordingWhisper = false;
+            isProcessingWhisper = true;
+            const blob = await recorder.stop();
+            if (blob) {
+                await transcribeAudio(blob);
+            }
+            isProcessingWhisper = false;
+        } else {
+            const success = await recorder.start();
+            if (success) {
+                isRecordingWhisper = true;
+            } else {
+                alert(
+                    "Microphone access failed. Please ensure permissions are granted in settings.",
+                );
+            }
+        }
+    }
+
+    async function transcribeAudio(blob) {
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        return new Promise((resolve) => {
+            reader.onloadend = async () => {
+                const result = reader.result;
+                if (typeof result !== "string") return resolve();
+                const base64Audio = result.split(",")[1];
+
+                try {
+                    const response = await chrome.runtime.sendMessage({
+                        type: "GROQ_TRANSCRIPTION",
+                        payload: {
+                            base64Audio,
+                            apiKey: $apiKey,
+                        },
+                    });
+
+                    if (response.text) {
+                        text = response.text;
+                        if (text.length > 3) {
+                            submit(true);
+                        }
+                    }
+                } catch (err) {
+                    console.error("Transcription failed:", err);
+                }
+                resolve();
+            };
+        });
+    }
 
     async function togglePen() {
         const [tab] = await chrome.tabs.query({
@@ -41,7 +152,7 @@
                 await chrome.extension.isAllowedFileSchemeAccess();
             if (!isAllowed) {
                 alert(
-                    'To annotate local files (like PDFs), please enable "Allow access to file URLs" in ConteXia settings (Details page).',
+                    'To annotate local files (like PDFs), please enable "Allow access to file URLs" in ConteXia settings.',
                 );
                 return;
             }
@@ -64,9 +175,9 @@
         }
     }
 
-    function submit() {
+    function submit(autoSpeak = false) {
         if (text.trim()) {
-            dispatch("submit", text);
+            dispatch("submit", { text, autoSpeak });
             text = "";
         }
     }
@@ -82,10 +193,9 @@
             recognition.interimResults = true;
 
             recognition.onresult = (event) => {
-                const transcript = Array.from(event.results)
+                text = Array.from(event.results)
                     .map((result) => result[0].transcript)
                     .join("");
-                text = transcript;
             };
 
             recognition.onerror = (event) => {
@@ -94,7 +204,6 @@
                         'Microphone blocked. Please use "Activate Microphone" in Settings once.',
                     );
                 }
-                console.error("Speech error:", event.error);
                 isListening.set(false);
             };
 
@@ -117,7 +226,7 @@
         if (!recognition) {
             addMessage(
                 "assistant",
-                "I'm sorry, but your browser doesn't seem to support speech recognition. We can still chat via text though!",
+                "Your browser doesn't seem to support speech recognition. We can still chat via text though!",
             );
             return;
         }
@@ -130,11 +239,10 @@
                 recognition.start();
                 isListening.set(true);
             } catch (e) {
-                console.error("Failed to start speech:", e);
                 isListening.set(false);
                 addMessage(
                     "assistant",
-                    "I'd love to listen, but I don't have permission to use your microphone yet. Please enable it in your browser settings so we can talk!",
+                    "I don't have permission to use your microphone yet. Please enable it in your browser settings so we can talk!",
                 );
             }
         }
@@ -157,7 +265,7 @@
             .find((m) => m.role === "assistant");
         if (lastAiMsg) {
             stopAllAudio();
-            speakWithCartesia(lastAiMsg.content);
+            speak(lastAiMsg.content);
         } else {
             dispatch("submit", {
                 text: "Tell me briefly what this page is about and read it aloud.",
@@ -219,17 +327,50 @@
         <div
             class="relative flex items-end gap-3 bg-surface/60 backdrop-blur-xl border border-border/40 rounded-sm p-3 transition-all inset-shadow ink-border group focus-within:border-accent/40"
         >
+            <!-- Recording Overlays -->
+            {#if isRecordingWhisper}
+                <div
+                    class="absolute inset-0 z-50 bg-highlight/10 backdrop-blur-md rounded-sm flex items-center justify-center gap-3 animate-pulse border-2 border-highlight/30"
+                >
+                    <div class="flex gap-1 items-center">
+                        <div
+                            class="w-1.5 h-1.5 rounded-full bg-highlight animate-bounce [animation-delay:-0.3s]"
+                        ></div>
+                        <div
+                            class="w-1.5 h-1.5 rounded-full bg-highlight animate-bounce [animation-delay:-0.15s]"
+                        ></div>
+                        <div
+                            class="w-1.5 h-1.5 rounded-full bg-highlight animate-bounce"
+                        ></div>
+                    </div>
+                    <span
+                        class="text-xs font-bold text-highlight uppercase tracking-[0.2em]"
+                        >Listening...</span
+                    >
+                </div>
+            {:else if isProcessingWhisper}
+                <div
+                    class="absolute inset-0 z-50 bg-background/40 backdrop-blur-md rounded-sm flex items-center justify-center gap-2"
+                >
+                    <Sparkles size={14} class="text-accent animate-spin" />
+                    <span class="text-xs font-medium text-accent italic"
+                        >Transcribing...</span
+                    >
+                </div>
+            {/if}
+
             <div class="flex-shrink-0 pb-1">
                 <button
-                    on:click={toggleVoice}
-                    class="p-2 rounded bg-background/40 border border-border/40 transition-all {$isListening
+                    on:click={handleMicClick}
+                    class="p-2 rounded bg-background/40 border border-border/40 transition-all {isRecordingWhisper
                         ? 'text-red-500 animate-pulse shadow-glow-blue'
                         : $isSpeaking
                           ? 'text-highlight scale-110'
-                          : 'text-accent'}"
+                          : 'text-accent hover:text-highlight'}"
+                    title="Click to Toggle (Spacebar holds to Talk)"
                 >
-                    {#if $isSpeaking}
-                        <Square size={16} />
+                    {#if $isSpeaking && !isRecordingWhisper}
+                        <Square size={16} on:click={stopAllAudio} />
                     {:else}
                         <Mic size={16} />
                     {/if}
@@ -269,7 +410,7 @@
                 </button>
 
                 <button
-                    on:click={submit}
+                    on:click={() => submit()}
                     disabled={!text.trim() || $isLoading}
                     class="p-2 rounded bg-accent border border-accent/20 text-background disabled:opacity-30 disabled:grayscale transition-all shadow-lg hover:shadow-accent/40 group/send"
                 >

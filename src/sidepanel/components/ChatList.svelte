@@ -4,7 +4,7 @@
     import { marked } from "marked";
     import { Volume2, User, Sparkles, Copy, Check } from "lucide-svelte";
     import { fade, fly } from "svelte/transition";
-    import { speakWithCartesia } from "../utils/audio";
+    import { speak } from "../utils/audio";
     import Landing from "./Landing.svelte";
 
     let container;
@@ -19,7 +19,7 @@
         }
         speakingId = id;
         try {
-            await speakWithCartesia(text);
+            await speak(text);
         } finally {
             speakingId = null;
         }

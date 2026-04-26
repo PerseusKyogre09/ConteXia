@@ -1,6 +1,8 @@
 # ConteXia 🌿🖋️
 ### *The Audio-First Context-Aware Reading Assistant*
 
+[**Visit the Live Site 🌐**](https://perseuskyogre09.github.io/ConteXia/)
+
 **ConteXia** is a minimal, premium AI partner designed for deep work. She lives in your browser, understanding exactly where your attention lies and bridging the gap between digital text and natural spoken dialogue. No generic summaries—just deep dives and human-grade narration.
 
 ---
@@ -47,10 +49,10 @@ npm run build
 ### 3. Load into Browser
 1. Open **Chrome** and navigate to `chrome://extensions/`.
 2. Toggle **Developer mode** to **ON** (top-right).
-3. Click **Load unpacked** and select the `dist` folder generated in the project root.
+3. Click **Load unpacked** and select the **`dist`** folder (generated in step 2).
 
-> [!NOTE]
-> If you are using a pre-packaged release, simply select the extracted folder containing the `manifest.json`.
+> [!CAUTION]
+> **Do NOT load the root project folder.** Chrome will fail with a syntax error because the source code isn't bundled yet. You must load the `dist` folder.
 
 ---
 

@@ -2,6 +2,7 @@ import { RateLimiter } from '../utils/rate_limiter';
 
 const groqLimiter = new RateLimiter('Groq', 10, 60000);
 const cartesiaLimiter = new RateLimiter('Cartesia', 20, 60000);
+const whisperLimiter = new RateLimiter('Whisper', 30, 60000);
 
 chrome.sidePanel
     .setPanelBehavior({ openPanelOnActionClick: true })
@@ -24,26 +25,13 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
 });
 
 chrome.runtime.onInstalled.addListener(() => {
-    chrome.contextMenus.create({
-        id: 'ask-contexia',
-        title: 'Ask ConteXia',
-        contexts: ['selection']
-    });
-    chrome.contextMenus.create({
-        id: 'contexia-summarize',
-        title: 'Summarize with ConteXia',
-        contexts: ['all']
-    });
-    chrome.contextMenus.create({
-        id: 'contexia-explain',
-        title: 'Explain with ConteXia',
-        contexts: ['all']
-    });
-    chrome.contextMenus.create({
-        id: 'contexia-read-aloud',
-        title: 'Read Aloud with ConteXia',
-        contexts: ['all']
-    });
+    const menus = [
+        { id: 'ask-contexia', title: 'Ask ConteXia', contexts: ['selection'] },
+        { id: 'contexia-summarize', title: 'Summarize with ConteXia', contexts: ['all'] },
+        { id: 'contexia-explain', title: 'Explain with ConteXia', contexts: ['all'] },
+        { id: 'contexia-read-aloud', title: 'Read Aloud with ConteXia', contexts: ['all'] }
+    ];
+    menus.forEach(menu => chrome.contextMenus.create(menu));
 });
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -71,9 +59,9 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 
         chrome.storage.local.set({
             pending_command: {
-                action: action,
-                text: text,
-                msgId: msgId,
+                action,
+                text,
+                msgId,
                 timestamp: Date.now()
             }
         });
@@ -83,11 +71,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
         const dispatch = () => {
             chrome.runtime.sendMessage({
                 type: 'APP_COMMAND',
-                payload: {
-                    action: action,
-                    text: text,
-                    msgId: msgId
-                }
+                payload: { action, text, msgId }
             }).catch(() => { });
         };
 
@@ -97,10 +81,18 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'ASK_GROQ') {
-        handleGroqRequest(message.payload).then(sendResponse);
+    const handlers = {
+        ASK_GROQ: handleGroqRequest,
+        CARTESIA_TTS: handleCartesiaTTS,
+        GROQ_TTS: handleGroqTTS,
+        GROQ_TRANSCRIPTION: handleGroqTranscription
+    };
+
+    if (handlers[message.type]) {
+        handlers[message.type](message.payload).then(sendResponse);
         return true;
     }
+
     if (message.type === 'CHIP_CLICK' && message.payload.action === 'SUMMARIZE') {
         const { text, msgId } = message.payload;
         const tabId = sender.tab.id;
@@ -108,8 +100,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         chrome.storage.local.set({
             pending_command: {
                 action: 'SUMMARIZE',
-                text: text,
-                msgId: msgId,
+                text,
+                msgId,
                 timestamp: Date.now()
             }
         });
@@ -119,23 +111,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const dispatch = () => {
             chrome.runtime.sendMessage({
                 type: 'APP_COMMAND',
-                payload: { action: 'SUMMARIZE', text: text, msgId: msgId }
+                payload: { action: 'SUMMARIZE', text, msgId }
             }).catch(() => { });
         };
 
         dispatch();
         setTimeout(dispatch, 800);
         setTimeout(dispatch, 2000);
-
-        return true;
-    }
-
-    if (message.type === 'CARTESIA_TTS') {
-        handleCartesiaTTS(message.payload).then(sendResponse);
-        return true;
-    }
-    if (message.type === 'GROQ_TTS') {
-        handleGroqTTS(message.payload).then(sendResponse);
         return true;
     }
 });
@@ -155,7 +137,7 @@ async function handleCartesiaTTS({ transcript, voiceId, apiKey }) {
             },
             body: JSON.stringify({
                 model_id: 'sonic-3',
-                transcript: transcript,
+                transcript,
                 voice: { mode: 'id', id: voiceId },
                 output_format: {
                     container: 'wav',
@@ -178,7 +160,46 @@ async function handleCartesiaTTS({ transcript, voiceId, apiKey }) {
         }
         return { data: btoa(binary) };
     } catch (error) {
-        console.error("Background TTS error:", error);
+        console.error("Cartesia request failed:", error);
+        return { error: error.message };
+    }
+}
+
+async function handleGroqTranscription({ base64Audio, apiKey, filename = 'speech.webm' }) {
+    const limitCheck = await whisperLimiter.checkLimit();
+    if (!limitCheck.allowed) return { error: limitCheck.message };
+
+    try {
+        await whisperLimiter.recordRequest();
+
+        const binaryString = atob(base64Audio);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'audio/webm' });
+        const file = new File([blob], filename, { type: 'audio/webm' });
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('model', 'whisper-large-v3');
+        formData.append('response_format', 'json');
+
+        const response = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}` },
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errBody = await response.text();
+            throw new Error(`Whisper rejected: ${response.status} - ${errBody}`);
+        }
+
+        const data = await response.json();
+        return { text: data.text };
+    } catch (error) {
+        console.error("Whisper request failed:", error);
         return { error: error.message };
     }
 }
@@ -216,7 +237,7 @@ async function handleGroqTTS({ transcript, apiKey }) {
         }
         return { data: btoa(binary) };
     } catch (error) {
-        console.error("Groq TTS error:", error);
+        console.error("Groq TTS request failed:", error);
         return { error: error.message };
     }
 }
@@ -243,11 +264,11 @@ Tone: ${tone || 'Casual'}.
 CRITICAL IMMERSION RULES:
 1. NEVER mention technical terms like "screenshot," "capture," "image," "file," "PDF," or "this page."
 2. Talk as if you are looking over the user's shoulder at their screen.
-3. Refer to visual input as "what I'm seeing," "your notes," "your annotations," or directly by the content (e.g., "Those SQL notes look great").
+3. Refer to visual input as "what I'm seeing," "your notes," "your annotations," or directly by the content.
 4. If this is a follow-up, just reply naturally like a friend in a DM.
 5. Be causal, warm, and conversational.
-6. Adapt your length to the request: if asked to "summarize" or "explain," provide a deep, thoughtful breakdown. Otherwise, stay concise.
-7. For "explain" requests specifically, prioritize a comprehensive breakdown of all key points, sections, and nuances. Be detailed and thorough.
+6. Adapt your length to the request.
+7. Prioritize a comprehensive breakdown for "explain" requests.
 8. No disclaimers, no robotic greetings, no "As an AI."`;
 
     let messages = [{ role: 'system', content: systemPrompt }];
@@ -291,8 +312,8 @@ CRITICAL IMMERSION RULES:
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: model,
-                messages: messages,
+                model,
+                messages,
                 temperature: 0.7,
                 max_tokens: 1024
             })
@@ -306,12 +327,8 @@ CRITICAL IMMERSION RULES:
     }
 }
 
-
 function buildUserPrompt(question, context) {
-    if (!context) {
-        return `User's question: "${question}"
-Answer based on general knowledge since no page context is available.`;
-    }
+    if (!context) return `User question: "${question}"`;
 
     const contextBlock = context.selectedText
         ? `I noticed you highlighted this: "${context.selectedText}"`
@@ -319,6 +336,5 @@ Answer based on general knowledge since no page context is available.`;
             ? `It seems you're looking at: "${context.hoveredSection}"`
             : `I can see you're on: "${context.pageTitle || 'this page'}"`;
 
-    return `Context: ${contextBlock}
-User: ${question}`;
+    return `Context: ${contextBlock}\nUser: ${question}`;
 }
