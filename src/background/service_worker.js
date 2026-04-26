@@ -9,19 +9,17 @@ chrome.sidePanel
 
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.status === 'complete' && tab.url?.startsWith('file://')) {
-        try {
-            const isAllowed = await chrome.extension.isAllowedFileSchemeAccess();
-            if (isAllowed) {
-                const manifest = chrome.runtime.getManifest();
-                const contentScript = manifest.content_scripts?.[0]?.js?.[0];
-                if (contentScript) {
-                    await chrome.scripting.executeScript({
-                        target: { tabId: tabId },
-                        files: [contentScript]
-                    });
-                }
+        const isAllowed = await chrome.extension.isAllowedFileSchemeAccess();
+        if (isAllowed) {
+            const manifest = chrome.runtime.getManifest();
+            const contentScript = manifest.content_scripts?.[0]?.js?.[0];
+            if (contentScript) {
+                chrome.scripting.executeScript({
+                    target: { tabId: tabId },
+                    files: [contentScript]
+                }).catch(() => { });
             }
-        } catch (e) { }
+        }
     }
 });
 
@@ -30,6 +28,21 @@ chrome.runtime.onInstalled.addListener(() => {
         id: 'ask-contexia',
         title: 'Ask ConteXia',
         contexts: ['selection']
+    });
+    chrome.contextMenus.create({
+        id: 'contexia-summarize',
+        title: 'Summarize with ConteXia',
+        contexts: ['all']
+    });
+    chrome.contextMenus.create({
+        id: 'contexia-explain',
+        title: 'Explain with ConteXia',
+        contexts: ['all']
+    });
+    chrome.contextMenus.create({
+        id: 'contexia-read-aloud',
+        title: 'Read Aloud with ConteXia',
+        contexts: ['all']
     });
 });
 
@@ -42,6 +55,44 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
                 payload: info.selectionText
             }).catch(() => { });
         }, 800);
+        return;
+    }
+
+    const actions = {
+        'contexia-summarize': 'SUMMARIZE',
+        'contexia-explain': 'EXPLAIN',
+        'contexia-read-aloud': 'READ_ALOUD'
+    };
+
+    const action = actions[info.menuItemId];
+    if (action) {
+        const msgId = `context_${Date.now()}`;
+        const text = info.selectionText || '';
+
+        chrome.storage.local.set({
+            pending_command: {
+                action: action,
+                text: text,
+                msgId: msgId,
+                timestamp: Date.now()
+            }
+        });
+
+        chrome.sidePanel.open({ tabId: tab.id });
+
+        const dispatch = () => {
+            chrome.runtime.sendMessage({
+                type: 'APP_COMMAND',
+                payload: {
+                    action: action,
+                    text: text,
+                    msgId: msgId
+                }
+            }).catch(() => { });
+        };
+
+        setTimeout(dispatch, 800);
+        setTimeout(dispatch, 2000);
     }
 });
 
@@ -195,8 +246,9 @@ CRITICAL IMMERSION RULES:
 3. Refer to visual input as "what I'm seeing," "your notes," "your annotations," or directly by the content (e.g., "Those SQL notes look great").
 4. If this is a follow-up, just reply naturally like a friend in a DM.
 5. Be causal, warm, and conversational.
-6. Adapt your length to the request: if asked to "sumarize or explain," provide a deep, thoughtful breakdown. Otherwise, stay concise.
-7. No disclaimers, no robotic greetings, no "As an AI."`;
+6. Adapt your length to the request: if asked to "summarize" or "explain," provide a deep, thoughtful breakdown. Otherwise, stay concise.
+7. For "explain" requests specifically, prioritize a comprehensive breakdown of all key points, sections, and nuances. Be detailed and thorough.
+8. No disclaimers, no robotic greetings, no "As an AI."`;
 
     let messages = [{ role: 'system', content: systemPrompt }];
 

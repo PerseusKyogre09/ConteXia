@@ -21,24 +21,33 @@
 
   onMount(async () => {
     const stored = await chrome.storage.local.get(["onboarding_seen"]);
-    const detailedPrompt = (text) =>
-      text === "Visual Analysis of Section"
-        ? "Can you give me a deep dive into this section?"
-        : `Deep dive on this: "${text}"`;
-
-    const triggerIfNew = (msgId, text) => {
-      if (processedMsgIds.has(msgId)) return;
-      processedMsgIds.add(msgId);
-      playInteractionPing("focus");
-      handleQuestion(detailedPrompt(text));
-    };
 
     chrome.runtime.onMessage.addListener((msg) => {
       if (msg.type === "PUSH_SELECTION") {
         handleQuestion(`What do you think about this? "${msg.payload}"`);
       } else if (msg.type === "APP_COMMAND") {
-        if (msg.payload.action === "SUMMARIZE") {
-          triggerIfNew(msg.payload.msgId, msg.payload.text);
+        const { action, text, msgId } = msg.payload;
+        if (processedMsgIds.has(msgId)) return;
+        processedMsgIds.add(msgId);
+        playInteractionPing("focus");
+
+        if (action === "SUMMARIZE") {
+          handleQuestion(
+            text
+              ? `Summarize this: "${text}"`
+              : "Can you summarize what I'm looking at?",
+          );
+        } else if (action === "EXPLAIN") {
+          handleQuestion(
+            text
+              ? `Give me a deep dive and comprehensive breakdown of this: "${text}"`
+              : "Give me a deep dive and comprehensive breakdown of everything I'm seeing here.",
+          );
+        } else if (action === "READ_ALOUD") {
+          const prompt = text
+            ? `Read this aloud: "${text}"`
+            : "Read what's on this page aloud for me";
+          handleQuestion(prompt, true);
         }
       }
     });
@@ -50,8 +59,25 @@
         if (data.pending_command) {
           const { action, text, msgId, timestamp } = data.pending_command;
           if (Date.now() - timestamp < 15000) {
+            processedMsgIds.add(msgId);
+            playInteractionPing("focus");
             if (action === "SUMMARIZE") {
-              triggerIfNew(msgId, text);
+              handleQuestion(
+                text
+                  ? `Summarize this: "${text}"`
+                  : "Can you summarize what I'm looking at?",
+              );
+            } else if (action === "EXPLAIN") {
+              handleQuestion(
+                text
+                  ? `Give me a deep dive and comprehensive breakdown of this: "${text}"`
+                  : "Give me a deep dive and comprehensive breakdown of everything I'm seeing here.",
+              );
+            } else if (action === "READ_ALOUD") {
+              const prompt = text
+                ? `Read this aloud: "${text}"`
+                : "Read what's on this page aloud for me";
+              handleQuestion(prompt, true);
             }
           }
           chrome.storage.local.remove("pending_command");
