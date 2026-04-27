@@ -10,7 +10,7 @@ Unlike standard extensions that only read HTML, ConteXia uses **Spatial Scanning
 
 ---
 
-## 🏆 Hackathon Submission: Context & Audio
+## 🏆 Context & Audio
 
 ### How ConteXia Understands Context
 ConteXia employs a multi-modal approach to grounding AI responses in the user's active environment:
