@@ -155,7 +155,25 @@ class InkOverlay {
     }
 }
 
+let isTrackingEnabled = false;
+
+// Initialize setting
+chrome.storage.local.get(['enable_context_tracking'], (data) => {
+    isTrackingEnabled = !!data.enable_context_tracking;
+    if (isTrackingEnabled) observeHeadings();
+});
+
+// Update dynamically
+chrome.storage.onChanged.addListener((changes) => {
+    if (changes.enable_context_tracking) {
+        isTrackingEnabled = !!changes.enable_context_tracking.newValue;
+        if (isTrackingEnabled) observeHeadings();
+        else observer.disconnect(); // Stop the observer if disabled
+    }
+});
+
 document.addEventListener('mouseover', (e) => {
+    if (!isTrackingEnabled) return;
     hoveredText = getSectionAroundElement(e.target);
     startDwellTracking(e.target);
 }, { passive: true });
@@ -167,6 +185,7 @@ document.addEventListener('mouseout', (e) => {
 let dwell = { timer: null, el: null };
 
 function startDwellTracking(el) {
+    if (!isTrackingEnabled) return;
     if (dwell.el === el) return;
     stopDwellTracking();
 
@@ -178,6 +197,7 @@ function startDwellTracking(el) {
 
     dwell.el = el;
     dwell.timer = setTimeout(() => {
+        if (!isTrackingEnabled) return;
         chrome.runtime.sendMessage({
             type: 'DWELL_SIGNAL',
             payload: { text: text.slice(0, 1000), tagName: el.tagName }
@@ -191,23 +211,34 @@ function stopDwellTracking() {
     dwell.el = null;
 }
 
-new IntersectionObserver((entries) => {
+// Use a more sensitive threshold and margin for sticky headers
+const observer = new IntersectionObserver((entries) => {
+    if (!isTrackingEnabled) return;
     entries.forEach(entry => {
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-            const text = entry.target.innerText?.trim();
-            if (text) {
+        // Higher sensitivity: trigger if even a small part is visible
+        if (entry.isIntersecting && entry.intersectionRatio > 0) {
+            let text = entry.target.innerText?.trim() || "";
+            // Wikipedia cleanup: remove "[edit]" or similar link text
+            text = text.replace(/\[\s*edit\s*\]/gi, '').trim();
+
+            if (text && text.length > 0) {
                 chrome.runtime.sendMessage({ type: 'HEADING_ENTERED', payload: text });
             }
         }
     });
-}, { threshold: 0.5 });
+}, {
+    threshold: [0, 0.1, 0.5],
+    rootMargin: '-80px 0px -10% 0px' // Adjust for sticky headers and bottom edge
+});
 
 const observeHeadings = () => {
+    if (!isTrackingEnabled) return;
     document.querySelectorAll('h1, h2, h3, h4, h5, h6').forEach(h => observer.observe(h));
 };
 
 let vhTimer = null;
 document.addEventListener('mousemove', (e) => {
+    if (!isTrackingEnabled) return;
     const target = e.target;
     const isVision = ['IMG', 'CANVAS', 'SVG'].includes(target.tagName) ||
         (target.tagName === 'DIV' && window.getComputedStyle(target).backgroundImage !== 'none');
@@ -215,6 +246,7 @@ document.addEventListener('mousemove', (e) => {
     if (isVision) {
         if (vhTimer) return;
         vhTimer = setTimeout(() => {
+            if (!isTrackingEnabled) return;
             chrome.runtime.sendMessage({ type: 'VISION_HOVER_SIGNAL' });
         }, 1500);
     } else {
@@ -226,8 +258,11 @@ document.addEventListener('mousemove', (e) => {
 });
 
 document.addEventListener('selectionchange', () => {
+    if (!isTrackingEnabled) return;
     const sel = window.getSelection().toString().trim();
-    chrome.runtime.sendMessage({ type: 'SELECTION_UPDATED', payload: sel });
+    if (sel) {
+        chrome.runtime.sendMessage({ type: 'SELECTION_UPDATED', payload: sel });
+    }
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

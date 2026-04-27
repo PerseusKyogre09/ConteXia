@@ -70,6 +70,16 @@
     bind:this={landingRef}
     class="flex flex-col items-center justify-center min-h-[60vh] px-8 text-center space-y-12 py-10"
 >
+    <div
+        class="landing-title w-20 h-20 bg-surface/40 backdrop-blur-md rounded-3xl border border-accent/20 p-4 flex items-center justify-center mb-4 shadow-2xl"
+    >
+        <img
+            src="/public/icons/icon128.png"
+            alt="ConteXia Logo"
+            class="w-full h-full object-contain filter drop-shadow-lg"
+        />
+    </div>
+
     <div class="space-y-4">
         <h1
             class="landing-title text-4xl font-bold tracking-tight text-foreground/90 leading-tight"

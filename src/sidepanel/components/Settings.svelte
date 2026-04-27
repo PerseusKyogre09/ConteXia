@@ -19,6 +19,7 @@
         cartesiaVoiceId,
         ttsEngine,
         preferVoice,
+        enableContextTracking,
     } from "../store";
     import { fly, fade } from "svelte/transition";
 
@@ -177,6 +178,34 @@
                 >
                     <div
                         class="absolute top-1 w-2 h-2 rounded-full bg-white transition-all {$preferVoice
+                            ? 'left-5'
+                            : 'left-1'}"
+                    ></div>
+                </div>
+            </button>
+
+            <!-- Context Awareness Toggle -->
+            <button
+                on:click={() => enableContextTracking.update((v) => !v)}
+                class="w-full mt-2 p-3 flex items-center justify-between border rounded-sm transition-all {$enableContextTracking
+                    ? 'bg-accent/10 border-accent text-accent shadow-glow-green/20'
+                    : 'bg-surface/10 border-border/20 text-muted/60'}"
+            >
+                <div class="flex flex-col items-start gap-0.5">
+                    <span class="text-[10px] font-bold uppercase tracking-wider"
+                        >Live Context Tracking</span
+                    >
+                    <span class="text-[8px] opacity-60 font-medium"
+                        >Detect headings & reading progress</span
+                    >
+                </div>
+                <div
+                    class="w-8 h-4 rounded-full relative transition-colors {$enableContextTracking
+                        ? 'bg-accent'
+                        : 'bg-muted/40'}"
+                >
+                    <div
+                        class="absolute top-1 w-2 h-2 rounded-full bg-white transition-all {$enableContextTracking
                             ? 'left-5'
                             : 'left-1'}"
                     ></div>

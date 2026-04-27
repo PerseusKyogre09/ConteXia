@@ -3,7 +3,10 @@
 
 [**Visit the Live Site 🌐**](https://perseuskyogre09.github.io/ConteXia/)
 
-**ConteXia** is a minimal, premium AI partner designed for deep work. She lives in your browser, understanding exactly where your attention lies and bridging the gap between digital text and natural spoken dialogue. No generic summaries—just deep dives and human-grade narration.
+**ConteXia** is a minimal, premium AI partner designed for deep work. She lives in your browser, understanding exactly where your attention lies and bridging the gap between digital text and natural spoken dialogue.
+
+### 📄 Deep PDF & Image Support
+Unlike standard extensions that only read HTML, ConteXia uses **Spatial Scanning (Viewport Capture)**. This means she can "see" and explain charts in research PDFs, diagrams in technical docs, and even non-selectable text in images exactly as you see them.
 
 ---
 
@@ -64,4 +67,4 @@ Load the **`dist`** folder into Chrome via `chrome://extensions/` with **Develop
 - **Voice**: 20 requests / min
 
 ---
-*Built for the future of deep reading.* 🥂🍃
+*Built for the future of deep reading.*

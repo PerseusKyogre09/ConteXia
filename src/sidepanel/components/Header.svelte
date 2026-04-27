@@ -12,12 +12,13 @@
 >
     <div class="flex items-center gap-2.5">
         <div
-            class="w-7 h-7 rounded bg-surface border border-accent/20 flex items-center justify-center shadow-inner"
+            class="w-7 h-7 rounded bg-surface border border-accent/20 flex items-center justify-center p-1"
         >
-            <span
-                class="text-accent font-bold text-[10px] tracking-widest uppercase"
-                >CX</span
-            >
+            <img
+                src="/public/icons/icon128.png"
+                alt="Logo"
+                class="w-full h-full object-contain"
+            />
         </div>
         <span
             class="text-sm font-semibold tracking-[0.2em] text-foreground uppercase"

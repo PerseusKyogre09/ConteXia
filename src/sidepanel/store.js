@@ -25,11 +25,12 @@ export const currentCartesiaKey = derived([cartesiaKey], ([$k]) => $k || INITIAL
 export const tone = writable('Casual');
 export const preferVoice = writable(true); // Default to enabled
 export const showSettings = writable(false);
+export const enableContextTracking = writable(false);
 export const proactiveHint = writable(null);
 export const currentSelection = writable('');
 export const staticSurface = writable(false);
 
-chrome.storage.local.get(['groq_api_key', 'contexia_tone', 'use_custom_key', 'custom_api_key', 'cartesia_key', 'cartesia_voice_id', 'contexia_tts_engine', 'contexia_prefer_voice']).then(data => {
+chrome.storage.local.get(['groq_api_key', 'contexia_tone', 'use_custom_key', 'custom_api_key', 'cartesia_key', 'cartesia_voice_id', 'contexia_tts_engine', 'contexia_prefer_voice', 'enable_context_tracking']).then(data => {
     if (data.use_custom_key !== undefined) useCustomKey.set(data.use_custom_key);
     if (data.custom_api_key) customApiKey.set(data.custom_api_key);
     if (data.contexia_tts_engine) ttsEngine.set(data.contexia_tts_engine);
@@ -41,6 +42,7 @@ chrome.storage.local.get(['groq_api_key', 'contexia_tone', 'use_custom_key', 'cu
     if (data.cartesia_key) cartesiaKey.set(data.cartesia_key);
     if (data.cartesia_voice_id) cartesiaVoiceId.set(data.cartesia_voice_id);
     if (data.contexia_prefer_voice !== undefined) preferVoice.set(data.contexia_prefer_voice);
+    if (data.enable_context_tracking !== undefined) enableContextTracking.set(data.enable_context_tracking);
 });
 
 chrome.storage.session.get(['contexia_messages']).then(data => {
@@ -60,6 +62,7 @@ cartesiaKey.subscribe(v => sync('cartesia_key', v));
 cartesiaVoiceId.subscribe(v => sync('cartesia_voice_id', v));
 ttsEngine.subscribe(v => sync('contexia_tts_engine', v));
 preferVoice.subscribe(v => sync('contexia_prefer_voice', v));
+enableContextTracking.subscribe(v => sync('enable_context_tracking', v));
 
 export function addMessage(role, content) {
     messages.update(m => [...m, { role, content, timestamp: Date.now() }]);
